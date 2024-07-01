@@ -1,0 +1,10 @@
+includes:
+    - vendor/phpstan/phpstan-phpunit/extension.neon
+parameters:
+    level: max
+    paths:
+        - src
+        - tests
+    parallel:
+        processTimeout: 1800.0
+        maximumNumberOfProcesses: 4

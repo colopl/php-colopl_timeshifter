@@ -1,0 +1,22 @@
+{
+    "files.associations": {
+        "*.phpt": "php",
+        "colopl_timeshifter_arginfo.h": "c",
+        "timelib.h": "c",
+        "php_date.h": "c",
+        "php_colopl_timeshifter.h": "c",
+        "info.h": "c",
+        "typeinfo": "cpp",
+        "hook.h": "c",
+        "mysqlnd_libmysql_compat.h": "c",
+        "system_error": "c",
+        "array": "c",
+        "functional": "c",
+        "tuple": "c",
+        "type_traits": "c",
+        "utility": "c",
+        "string_view": "c",
+        "initializer_list": "c",
+        "zend_max_execution_timer.h": "c"
+    }
+}

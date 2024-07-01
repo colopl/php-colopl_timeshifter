@@ -1,0 +1,49 @@
+name: CI
+on: [push, pull_request]
+jobs:
+  CI:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    strategy:
+      matrix:
+        arch: ["amd64", "arm64v8", "s390x"]
+        version: ["8.1", "8.2", "8.3"]
+        type: ["cli", "zts"]
+        distro: ["bookworm", "alpine"]
+    steps:
+        - name: Checkout
+          uses: actions/checkout@v4
+          with:
+            submodules: true
+        - name: Setup QEMU
+          uses: docker/setup-qemu-action@v3
+          with:
+            platforms: "arm64,s390x"
+        - name: Setup buildx
+          uses: docker/setup-buildx-action@v3
+        - name: Build container
+          run: |
+            docker compose build --pull --no-cache --build-arg IMAGE=${{ matrix.arch }}/php --build-arg TAG=${{ matrix.version }}-${{ matrix.type }}-${{ matrix.distro }} --build-arg PSKEL_SKIP_DEBUG=${{ matrix.arch != 'amd64' && '1' || '' }}
+        - name: Run tests
+          run: |
+            docker compose run --rm --entrypoint=/usr/bin/ci --env TEST_EXTENSION=1 dev
+        - name: Test extension with PHP Debug Build
+          if: matrix.arch == 'amd64'
+          run: |
+            docker compose run --rm --entrypoint=/usr/bin/ci --env TEST_EXTENSION_DEBUG=1 dev
+        - name: Test extension with Valgrind
+          if: matrix.arch == 'amd64'
+          run: |
+            docker compose run --rm --entrypoint=/usr/bin/ci --env TEST_EXTENSION_VALGRIND=1 dev
+        - name: Test extension with LLVM Sanitizer (MemorySanitizer)
+          if: matrix.arch == 'amd64' && matrix.distro != 'alpine'
+          run: |
+            docker compose run --rm --entrypoint=/usr/bin/ci --env TEST_EXTENSION_MSAN=1 dev
+        - name: Test extension with LLVM Sanitizer (AddressSanitizer)
+          if: matrix.arch == 'amd64' && matrix.distro != 'alpine'
+          run: |
+            docker compose run --rm --entrypoint=/usr/bin/ci --env TEST_EXTENSION_ASAN=1 dev
+        - name: Test extension with LLVM Sanitizer (UndefinedBehaviorSanitizer)
+          if: matrix.arch == 'amd64' && matrix.distro != 'alpine'
+          run: |
+            docker compose run --rm --entrypoint=/usr/bin/ci --env TEST_EXTENSION_UBSAN=1 dev
