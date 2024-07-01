@@ -1,0 +1,34 @@
+{
+    "name": "colopl/colopl_timeshifter",
+    "description": "Current time modification extension wrapper library.",
+    "type": "library",
+    "require": {
+        "php": "~8.1.0 || ~8.2.0 || ~8.3.0",
+        "ext-colopl_timeshifter": "^1.0"
+    },
+    "require-dev": {
+        "phpstan/phpstan": "^1",
+        "vimeo/psalm": "^5",
+        "phpunit/phpunit": "^10",
+        "phpstan/phpstan-phpunit": "^1",
+        "psalm/plugin-phpunit": "^0.19"
+    },
+    "license": "PHP-3.01",
+    "autoload": {
+        "psr-4": {
+            "Colopl\\ColoplTimeShifter\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Colopl\\ColoplTimeShifter\\Tests\\": "tests/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Go Kudo",
+            "email": "g-kudo@colopl.co.jp"
+        }
+    ],
+    "minimum-stability": "stable"
+}

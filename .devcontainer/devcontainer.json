@@ -1,0 +1,15 @@
+{
+	"name": "colopl_timeshifter",
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"ms-vscode.cpptools",
+				"ms-vscode.cpptools-extension-pack",
+				"maelvalais.autoconf"
+			]
+		}
+	},
+	"dockerComposeFile": "../compose.yaml",
+	"service": "dev",
+	"workspaceFolder": "/usr/src/php/ext/extension"
+}
