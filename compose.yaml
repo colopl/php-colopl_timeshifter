@@ -1,17 +1,17 @@
 services:
-  dev:
+  shell:
     build:
       context: ./
       dockerfile: ./Dockerfile
     cap_add:
-      - SYS_PTRACE
+      - SYS_ADMIN
     security_opt:
       - seccomp:unconfined
     privileged: true
+    tty: true
     volumes:
       - ./ext:/usr/src/php/ext/extension:cached
       - ./:/work:cached
-    tty: true
     depends_on:
       - mysql
       - tidb
@@ -27,4 +27,3 @@ services:
       - ./docker/mysql/etc/mysql/conf.d/my.cnf:/etc/mysql/conf.d/my.cnf
   tidb:
     image: pingcap/tidb:v7.1.1
-
