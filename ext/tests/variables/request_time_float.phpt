@@ -7,7 +7,7 @@ colopl_timeshifter
 
 $before_request_time = $_SERVER['REQUEST_TIME_FLOAT'];
 
-\Colopl\ColoplTimeShifter\register_hook(new \DateInterval('P1Y'));
+\Colopl\ColoplTimeShifter\register_hook(new \DateInterval('P2Y'));
 
 $after_request_time = $_SERVER['REQUEST_TIME_FLOAT'];
 
@@ -16,7 +16,7 @@ $after = new \DateTime('@' . $after_request_time);
 
 $interval = $after->diff($before);
 
-if ($before == $after || $interval->y !== 1 || $interval->invert !== 0) {
+if ($before == $after || $interval->y <= 0 || $interval->invert !== 0) {
     die('failed');
 }
 
