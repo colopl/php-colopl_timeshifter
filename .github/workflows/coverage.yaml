@@ -59,6 +59,9 @@ jobs:
           echo "Merging coverages: ${LCOV_FILES}"
           ${CMD}
           lcov --remove "lcov.info" "*/third_party/*" -o "lcov.info"
+      - name: List coverage
+        run: |
+          lcov --list "lcov.info"
       - name: Report coverage
         uses: k1LoW/octocov-action@v1
         with:
