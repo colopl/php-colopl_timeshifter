@@ -9,13 +9,9 @@ services:
       - seccomp:unconfined
     privileged: true
     tty: true
-    volumes:
-      - ./ext:/usr/src/php/ext/extension:cached
-      - ./:/work:cached
     depends_on:
       - mysql
       - tidb
-    command: ["sleep", "infinity"]
   mysql:
     image: mysql:8.0
     environment:
