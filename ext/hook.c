@@ -293,6 +293,7 @@ static inline int is_fixed_time_str(zend_string *datetime, zval *timezone)
 	php_date_instantiate(ce, &before_zv);
 	before = Z_PHPDATE_P(&before_zv);
 	if (!php_date_initialize(before, ZSTR_VAL(datetime), ZSTR_LEN(datetime), NULL, timezone, 0)) {
+		zval_ptr_dtor(&before_zv);
 		return FAILURE;
 	}
 
@@ -300,7 +301,11 @@ static inline int is_fixed_time_str(zend_string *datetime, zval *timezone)
 
 	php_date_instantiate(ce, &after_zv);
 	after = Z_PHPDATE_P(&after_zv);
-	php_date_initialize(after, ZSTR_VAL(datetime), ZSTR_LEN(datetime), NULL, timezone, 0);
+	if (!php_date_initialize(after, ZSTR_VAL(datetime), ZSTR_LEN(datetime), NULL, timezone, 0)) {
+		zval_ptr_dtor(&before_zv);
+		zval_ptr_dtor(&after_zv);
+		return FAILURE;
+	}
 
 	is_fixed_time_str = before->time->y == after->time->y
 		&& before->time->m == after->time->m
