@@ -184,7 +184,6 @@ static inline void apply_interval(timelib_time **time, timelib_rel_time *interva
 		zval *_timezone_object; \
 		format_flags_t flags; \
 		timelib_time *orig, *shifted; \
-		timelib_rel_time interval; \
 		\
 		CALL_ORIGINAL_FUNCTION(name); \
 		if (!return_value || Z_TYPE_P(return_value) == IS_FALSE || !Z_PHPDATE_P(return_value)->time) { \
