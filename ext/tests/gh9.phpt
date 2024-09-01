@@ -1,5 +1,5 @@
 --TEST--
-Check GitHub PR - #8 (wrong createFromFormat of start of month)
+Check GitHub PR - #9 (wrong createFromFormat of start of month)
 --EXTENSIONS--
 colopl_timeshifter
 --SKIPIF--
