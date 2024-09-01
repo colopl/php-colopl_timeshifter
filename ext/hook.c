@@ -183,6 +183,7 @@ static inline void apply_interval(timelib_time **time, timelib_rel_time *interva
 		zend_string *format, *_datetime; \
 		zval *_timezone_object; \
 		format_flags_t flags; \
+		timelib_time orig, *shifted; \
 		\
 		CALL_ORIGINAL_FUNCTION(name); \
 		if (!return_value || Z_TYPE_P(return_value) == IS_FALSE || !Z_PHPDATE_P(return_value)->time) { \
@@ -198,26 +199,36 @@ static inline void apply_interval(timelib_time **time, timelib_rel_time *interva
 		\
 		parse_format(ZSTR_VAL(format), &flags); \
 		\
-		timelib_time temp; \
-		timelib_rel_time interval; \
-		get_shift_interval(&interval); \
-		memcpy(&temp, Z_PHPDATE_P(return_value)->time, sizeof(timelib_time)); \
+		/* backup original method result */ \
+		memcpy(&orig, Z_PHPDATE_P(return_value)->time, sizeof(timelib_time)); \
+		shifted = get_shifted_timelib_time(); \
 		\
-		apply_interval(&Z_PHPDATE_P(return_value)->time, &interval); \
+		/* overwrite current shifted datetime */ \
+		Z_PHPDATE_P(return_value)->time->y = shifted->y; \
+		Z_PHPDATE_P(return_value)->time->m = shifted->m; \
+		Z_PHPDATE_P(return_value)->time->d = shifted->d; \
+		Z_PHPDATE_P(return_value)->time->h = shifted->h; \
+		Z_PHPDATE_P(return_value)->time->i = shifted->i; \
+		Z_PHPDATE_P(return_value)->time->s = shifted->s; \
+		Z_PHPDATE_P(return_value)->time->us = shifted->us; \
+		\
+		/* restore original method result if required */ \
 		if (flags.h || flags.i || flags.s || flags.us) { \
 			Z_PHPDATE_P(return_value)->time->h = 0; \
 			Z_PHPDATE_P(return_value)->time->i = 0; \
 			Z_PHPDATE_P(return_value)->time->s = 0; \
 			Z_PHPDATE_P(return_value)->time->us = 0; \
 		} \
-		if (flags.y) { Z_PHPDATE_P(return_value)->time->y = temp.y; } \
-		if (flags.m) { Z_PHPDATE_P(return_value)->time->m = temp.m; } \
-		if (flags.d) { Z_PHPDATE_P(return_value)->time->d = temp.d; } \
-		if (flags.h) { Z_PHPDATE_P(return_value)->time->h = temp.h; } \
-		if (flags.i) { Z_PHPDATE_P(return_value)->time->i = temp.i; } \
-		if (flags.s) { Z_PHPDATE_P(return_value)->time->s = temp.s; } \
-		if (flags.us) { Z_PHPDATE_P(return_value)->time->us = temp.us; } \
+		if (flags.y) { Z_PHPDATE_P(return_value)->time->y = orig.y; } \
+		if (flags.m) { Z_PHPDATE_P(return_value)->time->m = orig.m; } \
+		if (flags.d) { Z_PHPDATE_P(return_value)->time->d = orig.d; } \
+		if (flags.h) { Z_PHPDATE_P(return_value)->time->h = orig.h; } \
+		if (flags.i) { Z_PHPDATE_P(return_value)->time->i = orig.i; } \
+		if (flags.s) { Z_PHPDATE_P(return_value)->time->s = orig.s; } \
+		if (flags.us) { Z_PHPDATE_P(return_value)->time->us = orig.us; } \
 		\
+		/* release shifted time */ \
+		timelib_time_dtor(shifted); \
 		timelib_update_ts(Z_PHPDATE_P(return_value)->time, NULL); \
 	}
 
