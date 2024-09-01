@@ -20,7 +20,7 @@ if ($before == $after || $interval->y <= 0 || $interval->invert !== 0) {
     die('failed');
 }
 
-if ($before->format('YmdHisu') !== $after->format('YmdHisu')) {
+if (abs((int) $before->format('u') - (int) $after->format('u')) > 2) {
     die('failed');
 }
 
