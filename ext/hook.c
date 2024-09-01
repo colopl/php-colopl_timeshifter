@@ -183,7 +183,8 @@ static inline void apply_interval(timelib_time **time, timelib_rel_time *interva
 		zend_string *format, *_datetime; \
 		zval *_timezone_object; \
 		format_flags_t flags; \
-		timelib_time orig, *shifted; \
+		timelib_time *orig, *shifted; \
+		timelib_rel_time interval; \
 		\
 		CALL_ORIGINAL_FUNCTION(name); \
 		if (!return_value || Z_TYPE_P(return_value) == IS_FALSE || !Z_PHPDATE_P(return_value)->time) { \
@@ -200,8 +201,8 @@ static inline void apply_interval(timelib_time **time, timelib_rel_time *interva
 		parse_format(ZSTR_VAL(format), &flags); \
 		\
 		/* backup original method result */ \
-		memcpy(&orig, Z_PHPDATE_P(return_value)->time, sizeof(timelib_time)); \
-		shifted = get_shifted_timelib_time(); \
+		orig = timelib_time_clone(Z_PHPDATE_P(return_value)->time); \
+		shifted = get_shifted_timelib_time(orig->tz_info); \
 		\
 		/* overwrite current shifted datetime */ \
 		Z_PHPDATE_P(return_value)->time->y = shifted->y; \
@@ -219,15 +220,16 @@ static inline void apply_interval(timelib_time **time, timelib_rel_time *interva
 			Z_PHPDATE_P(return_value)->time->s = 0; \
 			Z_PHPDATE_P(return_value)->time->us = 0; \
 		} \
-		if (flags.y) { Z_PHPDATE_P(return_value)->time->y = orig.y; } \
-		if (flags.m) { Z_PHPDATE_P(return_value)->time->m = orig.m; } \
-		if (flags.d) { Z_PHPDATE_P(return_value)->time->d = orig.d; } \
-		if (flags.h) { Z_PHPDATE_P(return_value)->time->h = orig.h; } \
-		if (flags.i) { Z_PHPDATE_P(return_value)->time->i = orig.i; } \
-		if (flags.s) { Z_PHPDATE_P(return_value)->time->s = orig.s; } \
-		if (flags.us) { Z_PHPDATE_P(return_value)->time->us = orig.us; } \
+		if (flags.y) { Z_PHPDATE_P(return_value)->time->y = orig->y; } \
+		if (flags.m) { Z_PHPDATE_P(return_value)->time->m = orig->m; } \
+		if (flags.d) { Z_PHPDATE_P(return_value)->time->d = orig->d; } \
+		if (flags.h) { Z_PHPDATE_P(return_value)->time->h = orig->h; } \
+		if (flags.i) { Z_PHPDATE_P(return_value)->time->i = orig->i; } \
+		if (flags.s) { Z_PHPDATE_P(return_value)->time->s = orig->s; } \
+		if (flags.us) { Z_PHPDATE_P(return_value)->time->us = orig->us; } \
 		\
 		/* release shifted time */ \
+		timelib_time_dtor(orig); \
 		timelib_time_dtor(shifted); \
 		timelib_update_ts(Z_PHPDATE_P(return_value)->time, NULL); \
 	}
@@ -314,18 +316,23 @@ static inline bool is_fixed_time_str(zend_string *datetime, zval *timezone)
 	return is_fixed_time_str;
 }
 
-static inline timelib_time *get_current_timelib_time()
+static inline timelib_time *get_current_timelib_time(timelib_tzinfo *tzi)
 {
 	timelib_time *t = timelib_time_ctor();
 
-	timelib_unixtime2gmt(t, php_time());
+	if (tzi != NULL) {
+		timelib_set_timezone(t, tzi);
+		timelib_unixtime2local(t, (timelib_sll) php_time());
+	} else {
+		timelib_unixtime2gmt(t, php_time());
+	}
 
 	return t;
 }
 
-static inline timelib_time *get_shifted_timelib_time()
+static inline timelib_time *get_shifted_timelib_time(timelib_tzinfo *tzi)
 {
-	timelib_time *t = get_current_timelib_time();
+	timelib_time *t = get_current_timelib_time(tzi);
 	timelib_rel_time interval;
 
 	get_shift_interval(&interval);
@@ -334,10 +341,10 @@ static inline timelib_time *get_shifted_timelib_time()
 	return t;
 }
 
-static inline time_t get_shifted_time()
+static inline time_t get_shifted_time(timelib_tzinfo *tzi)
 {
 	time_t timestamp;
-	timelib_time *t = get_shifted_timelib_time();
+	timelib_time *t = get_shifted_timelib_time(tzi);
 
 	timestamp = t->sse;
 
@@ -355,7 +362,7 @@ static inline bool pdo_time_apply(pdo_dbh_t *dbh)
 		return false;
 	}
 
-	zend_sprintf(buf, "SET @@session.timestamp = %ld;", get_shifted_time());
+	zend_sprintf(buf, "SET @@session.timestamp = %ld;", get_shifted_time(NULL));
 	sql = zend_string_init_fast(buf, strlen(buf));
 	COLOPL_TS_G(pdo_mysql_orig_methods)->doer(dbh, sql);
 	zend_string_release(sql);
@@ -480,7 +487,7 @@ static inline void date_common(INTERNAL_FUNCTION_PARAMETERS, int localtime)
 	ZEND_PARSE_PARAMETERS_END();
 
 	if (ts_is_null) {
-		ts = get_shifted_time();
+		ts = get_shifted_time(NULL);
 	}
 
 	RETVAL_STR(php_format_date(ZSTR_VAL(format), ZSTR_LEN(format), ts, localtime));
@@ -529,7 +536,7 @@ static void hook_time(INTERNAL_FUNCTION_PARAMETERS)
 	CHECK_STATE(time);
 
 	CALL_ORIGINAL_FUNCTION(time);
-	RETURN_LONG(get_shifted_time());
+	RETURN_LONG(get_shifted_time(NULL));
 }
 
 static void hook_mktime(INTERNAL_FUNCTION_PARAMETERS)
@@ -603,7 +610,7 @@ static void hook_idate(INTERNAL_FUNCTION_PARAMETERS)
 	ZEND_PARSE_PARAMETERS_END();
 
 	if (ts_is_null) {
-		ts = get_shifted_time();
+		ts = get_shifted_time(NULL);
 	}
 
 	RETURN_LONG(php_idate(ZSTR_VAL(format)[0], ts, 0));
@@ -627,7 +634,7 @@ static void hook_getdate(INTERNAL_FUNCTION_PARAMETERS)
 
 	/* Call original function with timestamp params. */
 	zval params[1];
-	ZVAL_LONG(&params[0], get_shifted_time());
+	ZVAL_LONG(&params[0], get_shifted_time(NULL));
 	CALL_ORIGINAL_FUNCTION_WITH_PARAMS(getdate, params, 1);
 }
 
@@ -646,7 +653,7 @@ static void hook_localtime(INTERNAL_FUNCTION_PARAMETERS)
 
 	/* Call original function with params. */
 	zval params[2];
-	ZVAL_LONG(&params[0], get_shifted_time());
+	ZVAL_LONG(&params[0], get_shifted_time(NULL));
 	ZVAL_BOOL(&params[1], associative);
 	CALL_ORIGINAL_FUNCTION_WITH_PARAMS(localtime, params, 2);
 }
@@ -669,7 +676,7 @@ static void hook_strtotime(INTERNAL_FUNCTION_PARAMETERS)
 	times_lower = zend_string_tolower(times);
 	if (strncmp(ZSTR_VAL(times_lower), "now", 3) == 0) {
 		zend_string_release(times_lower);
-		RETURN_LONG((zend_long) get_shifted_time());
+		RETURN_LONG((zend_long) get_shifted_time(NULL));
 	}
 	zend_string_release(times_lower);
 
@@ -682,7 +689,7 @@ static void hook_strtotime(INTERNAL_FUNCTION_PARAMETERS)
 	zval *params = NULL;
 	uint32_t param_count = 0;
 	zend_parse_parameters(ZEND_NUM_ARGS(), "+", &params, &param_count);
-	ZVAL_LONG(&params[1], get_shifted_time());
+	ZVAL_LONG(&params[1], get_shifted_time(NULL));
 	CALL_ORIGINAL_FUNCTION_WITH_PARAMS(strtotime, params, param_count);
 
 	/* Apply interval. */

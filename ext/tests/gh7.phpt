@@ -12,7 +12,7 @@ echo $first->diff($second)->format('%y-%m-%d %h:%i:%s.%F'), \PHP_EOL;
 \Colopl\ColoplTimeShifter\unregister_hook();
 
 $first = date_create_from_format('i', '30');
-\Colopl\ColoplTimeShifter\register_hook(new DateInterval('P1MT30S'));
+\Colopl\ColoplTimeShifter\register_hook(new DateInterval('P1M'));
 $second = date_create_from_format('i', '30');
 echo $first->diff($second)->format('%y-%m-%d %h:%i:%s.%F'), \PHP_EOL;
 \Colopl\ColoplTimeShifter\unregister_hook();
