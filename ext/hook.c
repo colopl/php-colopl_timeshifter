@@ -122,6 +122,7 @@ static inline void apply_interval(timelib_time **time, timelib_rel_time *interva
 		memcpy(&orig, Z_PHPDATE_P(return_value)->time, sizeof(timelib_time)); \
 		/* Note: createFromFormat does not handle microseconds, so a wait in seconds is necessary */ \
 		usleep(((uint32_t) COLOPL_TS_G(usleep_sec)) > 0 ? ((uint32_t) COLOPL_TS_G(usleep_sec) * 1000000) : 1000000); \
+		zval_ptr_dtor(return_value); \
 		CALL_ORIGINAL_FUNCTION(name); \
 		\
 		if (Z_PHPDATE_P(return_value)->time->y == orig.y && \
