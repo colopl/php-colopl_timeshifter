@@ -107,13 +107,11 @@ static inline void apply_interval(timelib_time **time, timelib_rel_time *interva
 #define DEFINE_CREATE_FROM_FORMAT_EX(fname, name) \
 	static void hook_##fname(INTERNAL_FUNCTION_PARAMETERS) { \
 		CHECK_STATE(name); \
+		timelib_time orig; \
 		\
-		php_date_obj *date; \
-		timelib_time *time = NULL; \
-		zval *params, orig_return_value; \
-		uint32_t param_count = 0; \
-		timelib_time *current_time = get_current_timelib_time(); \
-		timelib_time *shifted_time = get_shifted_timelib_time(); \
+		zend_object *object; \
+		php_date_obj *object_date; \
+		timelib_rel_time interval; \
 		\
 		CALL_ORIGINAL_FUNCTION(name); \
 		\
@@ -121,46 +119,24 @@ static inline void apply_interval(timelib_time **time, timelib_rel_time *interva
 			RETURN_FALSE; \
 		} \
 		\
-		date = Z_PHPDATE_P(return_value); \
-		time = date->time; \
+		memcpy(&orig, Z_PHPDATE_P(return_value)->time, sizeof(timelib_time)); \
+		/* Note: createFromFormat does not handle microseconds, so a wait in seconds is necessary */ \
+		usleep(((uint32_t) COLOPL_TS_G(usleep_sec)) > 0 ? ((uint32_t) COLOPL_TS_G(usleep_sec) * 1000000) : 1000000); \
+		CALL_ORIGINAL_FUNCTION(name); \
 		\
-		zend_parse_parameters(ZEND_NUM_ARGS(), "+", &params, &param_count); \
-		\
-		if (memchr(Z_STRVAL(params[0]), '!', Z_STRLEN(params[0])) != NULL) { \
-			/* fixed (unix epoch) */ \
+		if (Z_PHPDATE_P(return_value)->time->y == orig.y && \
+			Z_PHPDATE_P(return_value)->time->m == orig.m && \
+			Z_PHPDATE_P(return_value)->time->d == orig.d && \
+			Z_PHPDATE_P(return_value)->time->h == orig.h && \
+			Z_PHPDATE_P(return_value)->time->i == orig.i && \
+			Z_PHPDATE_P(return_value)->time->s == orig.s && \
+			Z_PHPDATE_P(return_value)->time->us == orig.us \
+		) { \
 			return; \
 		} \
 		\
-		/* Fixed check */ \
-		if (current_time->y == time->y) { \
-			time->y = shifted_time->y; \
-		} \
-		if (current_time->m == time->m) { \
-			time->m = shifted_time->m; \
-		} \
-		if (current_time->d == time->d) { \
-			time->d = shifted_time->d; \
-		} \
-		if (current_time->h == time->h) { \
-			time->h = shifted_time->h; \
-		} \
-		if (current_time->i == time->i) { \
-			time->i = shifted_time->i; \
-		} \
-		/* Maybe sometimes mistake, but not bothered. */ \
-		if (llabs(current_time->s - time->s) <= 3) { \
-			time->s = shifted_time->s; \
-		} \
-		if (llabs(current_time->us - time->us) <= 10) { \
-			time->us = shifted_time->us; \
-		} \
-		\
-		/* Apply changes */ \
-		timelib_update_ts(time, NULL); \
-		\
-		/* Clean up */ \
-		timelib_time_dtor(current_time); \
-		timelib_time_dtor(shifted_time); \
+		get_shift_interval(&interval); \
+		apply_interval(&Z_PHPDATE_P(return_value)->time, &interval); \
 	}
 
 #define DEFINE_CREATE_FROM_FORMAT(name) \
@@ -224,17 +200,13 @@ static inline bool is_fixed_time_str(zend_string *datetime, zval *timezone)
 	before = Z_PHPDATE_P(&before_zv);
 	php_date_initialize(before, ZSTR_VAL(datetime), ZSTR_LEN(datetime), NULL, timezone, 0);
 
-	/* 
-	 * Check format is absolute.
-	 * FIXME: Need more instead method.
-	 */
 	usleep(((uint32_t) COLOPL_TS_G(usleep_sec)) > 0 ? (uint32_t) COLOPL_TS_G(usleep_sec) : 1);
 
 	php_date_instantiate(ce, &after_zv);
 	after = Z_PHPDATE_P(&after_zv);
 	php_date_initialize(after, ZSTR_VAL(datetime), ZSTR_LEN(datetime), NULL, timezone, 0);
 
-	is_fixed_time_str = before->time->y == after->time->y 
+	is_fixed_time_str = before->time->y == after->time->y
 		&& before->time->m == after->time->m
 		&& before->time->d == after->time->d
 		&& before->time->h == after->time->h
@@ -254,7 +226,7 @@ static inline timelib_time *get_current_timelib_time()
 	timelib_time *t = timelib_time_ctor();
 
 	timelib_unixtime2gmt(t, php_time());
-	
+
 	return t;
 }
 
@@ -328,7 +300,7 @@ static void hook_pdo_con(INTERNAL_FUNCTION_PARAMETERS)
 
 	CALL_ORIGINAL_FUNCTION(pdo_con);
 
-	if (!dbh->driver || 
+	if (!dbh->driver ||
 		strncmp(dbh->driver->driver_name, "mysql", 5) == 0 ||
 		dbh->methods != &COLOPL_TS_G(hooked_mysql_driver_methods)
 	) {
@@ -437,10 +409,10 @@ static inline void date_create_common(INTERNAL_FUNCTION_PARAMETERS, zend_class_e
 	php_date_instantiate(ce, return_value);
 	if (!php_date_initialize(
 		Z_PHPDATE_P(return_value),
-		(!time_str ? NULL : ZSTR_VAL(time_str)), 
+		(!time_str ? NULL : ZSTR_VAL(time_str)),
 		(!time_str ? 0 : ZSTR_LEN(time_str)),
-		NULL, 
-		timezone_object, 
+		NULL,
+		timezone_object,
 		0
 	)) {
 		zval_ptr_dtor(return_value);
@@ -778,7 +750,7 @@ void apply_request_time_hook()
 	globals_server = zend_hash_str_find(&EG(symbol_table), "_SERVER", strlen("_SERVER"));
 
 	if (!globals_server || Z_TYPE_P(globals_server) != IS_ARRAY) {
-		/* $_SERVER not defined */		
+		/* $_SERVER not defined */
 		return;
 	}
 
