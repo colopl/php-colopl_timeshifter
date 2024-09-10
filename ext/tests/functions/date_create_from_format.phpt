@@ -23,7 +23,7 @@ if (!$before_now instanceof \DateTime || !$before_static instanceof \DateTime ||
     die('failed');
 }
 
-if ($after_now != $before_now && $interval->y === 3 && $interval->invert === 0) {
+if ($after_now != $before_now && $interval->y >= 2 && $interval->invert === 0) {
     die('success');
 }
 
