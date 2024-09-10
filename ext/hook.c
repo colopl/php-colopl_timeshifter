@@ -118,6 +118,7 @@ static inline void apply_interval(timelib_time **time, timelib_rel_time *interva
 		CALL_ORIGINAL_FUNCTION(name); \
 		\
 		if (EG(exception) || Z_TYPE_P(return_value) == IS_FALSE) { \
+			timelib_time_dtor(real); \
 			timelib_time_dtor(shifted); \
 			if (return_value) { \
 				zval_ptr_dtor(return_value); \
@@ -135,6 +136,8 @@ static inline void apply_interval(timelib_time **time, timelib_rel_time *interva
 			Z_PHPDATE_P(return_value)->time->d = shifted->d; \
 		} \
 		timelib_update_ts(Z_PHPDATE_P(return_value)->time, NULL); \
+		timelib_time_dtor(real); \
+		timelib_time_dtor(shifted); \
 	}
 
 #define DEFINE_CREATE_FROM_FORMAT(name) \
