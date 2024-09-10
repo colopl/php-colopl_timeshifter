@@ -107,37 +107,34 @@ static inline void apply_interval(timelib_time **time, timelib_rel_time *interva
 #define DEFINE_CREATE_FROM_FORMAT_EX(fname, name) \
 	static void hook_##fname(INTERNAL_FUNCTION_PARAMETERS) { \
 		CHECK_STATE(name); \
-		timelib_time orig; \
+		timelib_time *real, *shifted; \
 		\
 		zend_object *object; \
 		php_date_obj *object_date; \
 		timelib_rel_time interval; \
 		\
+		real = get_current_timelib_time(); \
+		shifted = get_shifted_timelib_time(); \
 		CALL_ORIGINAL_FUNCTION(name); \
 		\
 		if (EG(exception) || Z_TYPE_P(return_value) == IS_FALSE) { \
+			timelib_time_dtor(shifted); \
+			if (return_value) { \
+				zval_ptr_dtor(return_value); \
+			} \
 			RETURN_FALSE; \
 		} \
 		\
-		memcpy(&orig, Z_PHPDATE_P(return_value)->time, sizeof(timelib_time)); \
-		/* Note: createFromFormat does not handle microseconds, so a wait in seconds is necessary */ \
-		usleep(((uint32_t) COLOPL_TS_G(usleep_sec)) > 0 ? ((uint32_t) COLOPL_TS_G(usleep_sec) * 1000000) : 1000000); \
-		zval_ptr_dtor(return_value); \
-		CALL_ORIGINAL_FUNCTION(name); \
-		\
-		if (Z_PHPDATE_P(return_value)->time->y == orig.y && \
-			Z_PHPDATE_P(return_value)->time->m == orig.m && \
-			Z_PHPDATE_P(return_value)->time->d == orig.d && \
-			Z_PHPDATE_P(return_value)->time->h == orig.h && \
-			Z_PHPDATE_P(return_value)->time->i == orig.i && \
-			Z_PHPDATE_P(return_value)->time->s == orig.s && \
-			Z_PHPDATE_P(return_value)->time->us == orig.us \
-		) { \
-			return; \
+		if (Z_PHPDATE_P(return_value)->time->y == real->y && Z_PHPDATE_P(return_value)->time->y != shifted->y) { \
+			Z_PHPDATE_P(return_value)->time->y = shifted->y; \
 		} \
-		\
-		get_shift_interval(&interval); \
-		apply_interval(&Z_PHPDATE_P(return_value)->time, &interval); \
+		if (Z_PHPDATE_P(return_value)->time->m == real->m && Z_PHPDATE_P(return_value)->time->m != shifted->m) { \
+			Z_PHPDATE_P(return_value)->time->m = shifted->m; \
+		} \
+		if (Z_PHPDATE_P(return_value)->time->d == real->d && Z_PHPDATE_P(return_value)->time->d != shifted->d) { \
+			Z_PHPDATE_P(return_value)->time->d = shifted->d; \
+		} \
+		timelib_update_ts(Z_PHPDATE_P(return_value)->time, NULL); \
 	}
 
 #define DEFINE_CREATE_FROM_FORMAT(name) \
