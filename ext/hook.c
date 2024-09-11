@@ -37,9 +37,17 @@ typedef struct _format_flags_t {
 
 static inline void parse_format(char *format, format_flags_t *flags) {
 	memset(flags, 0, sizeof(format_flags_t));
+	bool skip_next = false;
 
 	for (char *c = format; *c != '\0'; c++) {
+		if (skip_next) {
+			skip_next = false;
+			continue;
+		}
 		switch (*c) {
+			case '\\':
+				skip_next = true;
+				continue;
 			case 'X':
 			case 'x':
 			case 'Y':
@@ -55,13 +63,13 @@ static inline void parse_format(char *format, format_flags_t *flags) {
 			case 'd':
 			case 'j':
 			case 'D':
-			case 'l':
-			case 'S':
+			/* case 'l': */
+			/* case 'S': */
 			case 'z':
 				flags->d = true;
 				break;
-			case 'a':
-			case 'A':
+			/* case 'a': */
+			/* case 'A': */
 			case 'g':
 			case 'h':
 			case 'G':
