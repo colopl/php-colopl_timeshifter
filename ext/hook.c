@@ -77,6 +77,7 @@ static inline void parse_format(char *format, format_flags_t *flags) {
 			case 'P':
 				flags->h = true;
 				flags->i = true;
+				break;
 			case 's':
 				flags->s = true;
 				break;
@@ -178,7 +179,7 @@ static inline void apply_interval(timelib_time **time, timelib_rel_time *interva
 	static void hook_##fname(INTERNAL_FUNCTION_PARAMETERS) { \
 		CHECK_STATE(name); \
 		\
-		timelib_time *current, *shifted, *created; \
+		timelib_time *shifted, *created; \
 		zend_string *format, *_datetime; \
 		zval *_timezone_object; \
 		format_flags_t flags; \
@@ -196,7 +197,6 @@ static inline void apply_interval(timelib_time **time, timelib_rel_time *interva
 		ZEND_PARSE_PARAMETERS_END(); \
 		parse_format(ZSTR_VAL(format), &flags); \
 		\
-		current = get_current_timelib_time(); \
 		shifted = get_shifted_timelib_time(); \
 		created = Z_PHPDATE_P(return_value)->time; \
 		\
@@ -209,6 +209,7 @@ static inline void apply_interval(timelib_time **time, timelib_rel_time *interva
 		if (!flags.us && created->us != 0) { created->us = shifted->us; } \
 		\
 		timelib_update_ts(created, NULL); \
+		timelib_time_dtor(shifted); \
 	}
 
 #define DEFINE_CREATE_FROM_FORMAT(name) \
