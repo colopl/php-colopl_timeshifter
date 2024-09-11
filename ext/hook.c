@@ -32,7 +32,7 @@
 #endif
 
 typedef struct _format_flags_t {
-	bool y, m, d, h, i, s, us, direct;
+	bool y, m, d, h, i, s, us;
 } format_flags_t;
 
 static inline void parse_format(char *format, format_flags_t *flags) {
@@ -85,13 +85,6 @@ static inline void parse_format(char *format, format_flags_t *flags) {
 			case 'v':
 			case 'u':
 				flags->us = true;
-				continue;
-			case 'e':
-			case 'O':
-			case 'p':
-			case 'P':
-			case 'T':
-				flags->direct = true;
 				continue;
 			case '!':
 			case '|':
