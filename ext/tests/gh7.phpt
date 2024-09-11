@@ -53,6 +53,18 @@ $second = date_create_from_format('u\\Y\\m\\d', '123456Ymd');
 echo $first->diff($second)->format('%y-%m-%d %h:%i:%s.%F'), \PHP_EOL;
 \Colopl\ColoplTimeShifter\unregister_hook();
 
+$first = date_create_from_format('YmdP', '19941026Asia/Tokyo');
+\Colopl\ColoplTimeShifter\register_hook(new DateInterval('P1M'));
+$second = date_create_from_format('YmdP', '19941026Asia/Tokyo');
+echo $first->diff($second)->format('%y-%m-%d %h:%i:%s.%F'), \PHP_EOL;
+\Colopl\ColoplTimeShifter\unregister_hook();
+
+$first = date_create_from_format('uYmdP', '12345619941026Asia/Tokyo');
+\Colopl\ColoplTimeShifter\register_hook(new DateInterval('P1M'));
+$second = date_create_from_format('uYmdP', '12345619941026Asia/Tokyo');
+echo $first->diff($second)->format('%y-%m-%d %h:%i:%s.%F'), \PHP_EOL;
+\Colopl\ColoplTimeShifter\unregister_hook();
+
 ?>
 --EXPECTF--
 0-0-0 1:0:0.000000
@@ -63,3 +75,5 @@ echo $first->diff($second)->format('%y-%m-%d %h:%i:%s.%F'), \PHP_EOL;
 0-0-0 0:%d:%d.%d
 0-0-0 0:0:0.000000
 0-1-0 0:0:0.000000
+0-0-0 0:0:0.000000
+0-0-0 0:0:0.000000

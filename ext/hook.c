@@ -92,6 +92,7 @@ static inline void parse_format(char *format, format_flags_t *flags) {
 			case 'P':
 			case 'T':
 				flags->direct = true;
+				continue;
 			case '!':
 			case '|':
 			case 'U':
@@ -102,7 +103,7 @@ static inline void parse_format(char *format, format_flags_t *flags) {
 				flags->i = true;
 				flags->s = true;
 				flags->us = true;
-				return;
+				continue;
 			default:
 				break;
 		}
@@ -205,9 +206,19 @@ static inline void apply_interval(timelib_time **time, timelib_rel_time *interva
 		parse_format(ZSTR_VAL(format), &flags); \
 		\
 		if (flags.direct) { \
+			timelib_time temp; \
 			timelib_rel_time interval; \
+			\
+			memcpy(&temp, Z_PHPDATE_P(return_value)->time, sizeof(timelib_time)); \
 			get_shift_interval(&interval); \
 			apply_interval(&Z_PHPDATE_P(return_value)->time, &interval); \
+			if (flags.y) { Z_PHPDATE_P(return_value)->time->y = temp.y; } \
+			if (flags.m) { Z_PHPDATE_P(return_value)->time->m = temp.m; } \
+			if (flags.d) { Z_PHPDATE_P(return_value)->time->d = temp.d; } \
+			if (flags.h) { Z_PHPDATE_P(return_value)->time->h = temp.h; } \
+			if (flags.i) { Z_PHPDATE_P(return_value)->time->i = temp.i; } \
+			if (flags.s) { Z_PHPDATE_P(return_value)->time->s = temp.s; } \
+			if (flags.us) { Z_PHPDATE_P(return_value)->time->us = temp.us; } \
 		} else { \
 			timelib_time *shifted, *created; \
 			shifted = get_shifted_timelib_time(); \
