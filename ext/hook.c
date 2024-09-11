@@ -1,18 +1,18 @@
 /*
   +----------------------------------------------------------------------+
-  | COLOPL PHP TimeShifter.                                              |
+  | COLOPL PHP TimeShifter.											  |
   +----------------------------------------------------------------------+
-  | Copyright (c) COLOPL, Inc.                                           |
+  | Copyright (c) COLOPL, Inc.										   |
   +----------------------------------------------------------------------+
-  | This source file is subject to version 3.01 of the PHP license,      |
-  | that is bundled with this package in the file LICENSE, and is        |
-  | available through the world-wide-web at the following url:           |
-  | http://www.php.net/license/3_01.txt                                  |
+  | This source file is subject to version 3.01 of the PHP license,	  |
+  | that is bundled with this package in the file LICENSE, and is		|
+  | available through the world-wide-web at the following url:		   |
+  | http://www.php.net/license/3_01.txt								  |
   | If you did not receive a copy of the PHP license and are unable to   |
-  | obtain it through the world-wide-web, please send a note to          |
-  | info@colopl.co.jp so we can mail you a copy immediately.             |
+  | obtain it through the world-wide-web, please send a note to		  |
+  | info@colopl.co.jp so we can mail you a copy immediately.			 |
   +----------------------------------------------------------------------+
-  | Author: Go Kudo <g-kudo@colopl.co.jp>                                |
+  | Author: Go Kudo <g-kudo@colopl.co.jp>								|
   +----------------------------------------------------------------------+
 */
 
@@ -32,9 +32,80 @@
 # include <sys/time.h>
 #endif
 
+typedef struct _format_flags_t {
+	bool y, m, d, h, i, s, us;
+} format_flags_t;
+
+static inline void parse_format(char *format, format_flags_t *flags) {
+	memset(flags, 0, sizeof(format_flags_t));
+
+	for (char *c = format; *c != '\0'; c++) {
+		switch (*c) {
+			case 'X':
+			case 'x':
+			case 'Y':
+			case 'y':
+				flags->y = true;
+				break;
+			case 'F':
+			case 'M':
+			case 'm':
+			case 'n':
+				flags->m = true;
+				break;
+			case 'd':
+			case 'j':
+			case 'D':
+			case 'l':
+			case 'S':
+			case 'z':
+				flags->d = true;
+				break;
+			case 'a':
+			case 'A':
+			case 'g':
+			case 'h':
+			case 'G':
+			case 'H':
+				flags->h = true;
+				break;
+			case 'i':
+				flags->i = true;
+				break;
+			case 'e':
+			case 'O':
+			case 'p':
+			case 'P':
+				flags->h = true;
+				flags->i = true;
+			case 's':
+				flags->s = true;
+				break;
+			case 'v':
+			case 'u':
+				flags->us = true;
+				break;
+			case '!':
+			case '|':
+			case 'U':
+				flags->y = true;
+				flags->m = true;
+				flags->d = true;
+				flags->h = true;
+				flags->i = true;
+				flags->s = true;
+				flags->us = true;
+				return;
+			default:
+				break;
+		}
+	}
+}
+
 static inline void apply_interval(timelib_time **time, timelib_rel_time *interval)
 {
 	timelib_time *new_time = timelib_sub(*time, interval);
+	timelib_update_ts(new_time, NULL);
 	timelib_time_dtor(*time);
 	*time = new_time;
 }
@@ -107,37 +178,35 @@ static inline void apply_interval(timelib_time **time, timelib_rel_time *interva
 #define DEFINE_CREATE_FROM_FORMAT_EX(fname, name) \
 	static void hook_##fname(INTERNAL_FUNCTION_PARAMETERS) { \
 		CHECK_STATE(name); \
-		timelib_time *real, *shifted; \
 		\
-		zend_object *object; \
-		php_date_obj *object_date; \
-		timelib_rel_time interval; \
+		timelib_time *current, *shifted, *created; \
+		zend_string *format; \
+		format_flags_t flags; \
 		\
-		real = get_current_timelib_time(); \
-		shifted = get_shifted_timelib_time(); \
 		CALL_ORIGINAL_FUNCTION(name); \
-		\
-		if (EG(exception) || Z_TYPE_P(return_value) == IS_FALSE) { \
-			timelib_time_dtor(real); \
-			timelib_time_dtor(shifted); \
-			if (return_value) { \
-				zval_ptr_dtor(return_value); \
-			} \
-			RETURN_FALSE; \
+		if (!return_value || Z_TYPE_P(return_value) == IS_FALSE || !Z_PHPDATE_P(return_value)->time) { \
+			return; \
 		} \
 		\
-		if (Z_PHPDATE_P(return_value)->time->y == real->y && Z_PHPDATE_P(return_value)->time->y != shifted->y) { \
-			Z_PHPDATE_P(return_value)->time->y = shifted->y; \
-		} \
-		if (Z_PHPDATE_P(return_value)->time->m == real->m && Z_PHPDATE_P(return_value)->time->m != shifted->m) { \
-			Z_PHPDATE_P(return_value)->time->m = shifted->m; \
-		} \
-		if (Z_PHPDATE_P(return_value)->time->d == real->d && Z_PHPDATE_P(return_value)->time->d != shifted->d) { \
-			Z_PHPDATE_P(return_value)->time->d = shifted->d; \
-		} \
-		timelib_update_ts(Z_PHPDATE_P(return_value)->time, NULL); \
-		timelib_time_dtor(real); \
-		timelib_time_dtor(shifted); \
+		ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_QUIET, 2, 3); \
+			Z_PARAM_STR(format) \
+			Z_PARAM_OPTIONAL \
+		ZEND_PARSE_PARAMETERS_END(); \
+		parse_format(ZSTR_VAL(format), &flags); \
+		\
+		current = get_current_timelib_time(); \
+		shifted = get_shifted_timelib_time(); \
+		created = Z_PHPDATE_P(return_value)->time; \
+		\
+		if (!flags.y) { created->y = shifted->y; } \
+		if (!flags.m) { created->m = shifted->m; } \
+		if (!flags.d) { created->d = shifted->d; } \
+		if (!flags.h && created->h != 0) { created->h = shifted->h; } \
+		if (!flags.i && created->i != 0) { created->i = shifted->i; } \
+		if (!flags.s && created->s != 0) { created->s = shifted->s; } \
+		if (!flags.us && created->us != 0) { created->us = shifted->us; } \
+		\
+		timelib_update_ts(created, NULL); \
 	}
 
 #define DEFINE_CREATE_FROM_FORMAT(name) \
