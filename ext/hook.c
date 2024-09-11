@@ -53,13 +53,13 @@ static inline void parse_format(char *format, format_flags_t *flags) {
 			case 'Y':
 			case 'y':
 				flags->y = true;
-				break;
+				continue;
 			case 'F':
 			case 'M':
 			case 'm':
 			case 'n':
 				flags->m = true;
-				break;
+				continue;
 			case 'd':
 			case 'j':
 			case 'D':
@@ -67,7 +67,7 @@ static inline void parse_format(char *format, format_flags_t *flags) {
 			/* case 'S': */
 			case 'z':
 				flags->d = true;
-				break;
+				continue;
 			/* case 'a': */
 			/* case 'A': */
 			case 'g':
@@ -75,17 +75,17 @@ static inline void parse_format(char *format, format_flags_t *flags) {
 			case 'G':
 			case 'H':
 				flags->h = true;
-				break;
+				continue;
 			case 'i':
 				flags->i = true;
-				break;
+				continue;
 			case 's':
 				flags->s = true;
-				break;
+				continue;
 			case 'v':
 			case 'u':
 				flags->us = true;
-				break;
+				continue;
 			case 'e':
 			case 'O':
 			case 'p':
@@ -105,7 +105,7 @@ static inline void parse_format(char *format, format_flags_t *flags) {
 				flags->us = true;
 				continue;
 			default:
-				break;
+				continue;
 		}
 	}
 }
