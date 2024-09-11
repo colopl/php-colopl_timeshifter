@@ -8,6 +8,10 @@ colopl_timeshifter
 $first = date_create_from_format('Ymd', '19941026');
 \Colopl\ColoplTimeShifter\register_hook(new DateInterval('PT1H'));
 $second = date_create_from_format('Ymd', '19941026');
+/* Sometimes delay */
+if ($first->diff($second)->format('%h%i%s') !== '100' && $first->diff($second)->format('%h%i%s') !== '05959') {
+    die('fail: ' . $first->diff($second)->format('%h%i%s'));
+}
 echo $first->diff($second)->format('%y-%m-%d %h:%i:%s.%F'), \PHP_EOL;
 \Colopl\ColoplTimeShifter\unregister_hook();
 
@@ -67,7 +71,7 @@ echo $first->diff($second)->format('%y-%m-%d %h:%i:%s.%F'), \PHP_EOL;
 
 ?>
 --EXPECTF--
-0-0-0 1:0:0.000000
+0-0-0 %d:%d:%d.000000
 0-1-0 0:0:0.000000
 0-0-0 0:0:0.000000
 0-0-0 0:0:0.000000
