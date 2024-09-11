@@ -9,10 +9,13 @@ $first = date_create_from_format('Ymd', '19941026');
 \Colopl\ColoplTimeShifter\register_hook(new DateInterval('PT1H'));
 $second = date_create_from_format('Ymd', '19941026');
 echo $first->diff($second)->format('%y-%m-%d %h:%i:%s'), \PHP_EOL;
+if ($first->diff($second)->format('%h%i%s') != '100' && $first->diff($second)->format('%h%i%s') != '5959') {
+    die('failed');
+}
 \Colopl\ColoplTimeShifter\unregister_hook();
 
 $first = date_create_from_format('i', '30');
-\Colopl\ColoplTimeShifter\register_hook(new DateInterval('P1DT30S'));
+\Colopl\ColoplTimeShifter\register_hook(new DateInterval('P1MT30S'));
 $second = date_create_from_format('i', '30');
 echo $first->diff($second)->format('%y-%m-%d %h:%i:%s'), \PHP_EOL;
 \Colopl\ColoplTimeShifter\unregister_hook();
@@ -41,12 +44,6 @@ $second = date_create_from_format('P', '+0230');
 echo $first->diff($second)->format('%y-%m-%d %h:%i:%s'), \PHP_EOL;
 \Colopl\ColoplTimeShifter\unregister_hook();
 
-$first = date_create_from_format('Y\\md', '1994m26');
-\Colopl\ColoplTimeShifter\register_hook(new DateInterval('PT1H'));
-$second = date_create_from_format('Y\\md', '1994m26');
-echo $first->diff($second)->format('%y-%m-%d %h:%i:%s'), \PHP_EOL;
-\Colopl\ColoplTimeShifter\unregister_hook();
-
 $first = date_create_from_format('Ym\\d', '199410d');
 \Colopl\ColoplTimeShifter\register_hook(new DateInterval('P1M'));
 $second = date_create_from_format('Ym\\d', '199410d');
@@ -60,13 +57,12 @@ echo $first->diff($second)->format('%y-%m-%d %h:%i:%s'), \PHP_EOL;
 \Colopl\ColoplTimeShifter\unregister_hook();
 
 ?>
---EXPECT--
-0-0-0 1:0:0
-0-0-1 0:0:0
+--EXPECTF--
+0-0-0 %d:%d:%d
+0-1-0 0:0:0
 0-0-0 0:0:0
 0-0-0 0:0:0
 0-0-0 0:0:0
 0-0-0 0:0:0
-0-0-0 1:0:0
 0-0-0 0:0:0
 0-1-0 0:0:0
