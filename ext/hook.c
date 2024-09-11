@@ -15,7 +15,6 @@
   | Author: Go Kudo <g-kudo@colopl.co.jp>                                |
   +----------------------------------------------------------------------+
 */
-
 #include "hook.h"
 
 #include "php.h"
@@ -32,9 +31,82 @@
 # include <sys/time.h>
 #endif
 
+typedef struct _format_flags_t {
+	bool y, m, d, h, i, s, us;
+} format_flags_t;
+
+static inline void parse_format(char *format, format_flags_t *flags) {
+	memset(flags, 0, sizeof(format_flags_t));
+	bool skip_next = false;
+
+	for (char *c = format; *c != '\0'; c++) {
+		if (skip_next) {
+			skip_next = false;
+			continue;
+		}
+		switch (*c) {
+			case '\\':
+				skip_next = true;
+				continue;
+			case 'X':
+			case 'x':
+			case 'Y':
+			case 'y':
+				flags->y = true;
+				continue;
+			case 'F':
+			case 'M':
+			case 'm':
+			case 'n':
+				flags->m = true;
+				continue;
+			case 'd':
+			case 'j':
+			case 'D':
+			/* case 'l': */
+			/* case 'S': */
+			case 'z':
+				flags->d = true;
+				continue;
+			/* case 'a': */
+			/* case 'A': */
+			case 'g':
+			case 'h':
+			case 'G':
+			case 'H':
+				flags->h = true;
+				continue;
+			case 'i':
+				flags->i = true;
+				continue;
+			case 's':
+				flags->s = true;
+				continue;
+			case 'v':
+			case 'u':
+				flags->us = true;
+				continue;
+			case '!':
+			case '|':
+			case 'U':
+				flags->y = true;
+				flags->m = true;
+				flags->d = true;
+				flags->h = true;
+				flags->i = true;
+				flags->s = true;
+				flags->us = true;
+				continue;
+			default:
+				continue;
+		}
+	}
+}
+
 static inline void apply_interval(timelib_time **time, timelib_rel_time *interval)
 {
 	timelib_time *new_time = timelib_sub(*time, interval);
+	timelib_update_ts(new_time, NULL);
 	timelib_time_dtor(*time);
 	*time = new_time;
 }
@@ -107,37 +179,46 @@ static inline void apply_interval(timelib_time **time, timelib_rel_time *interva
 #define DEFINE_CREATE_FROM_FORMAT_EX(fname, name) \
 	static void hook_##fname(INTERNAL_FUNCTION_PARAMETERS) { \
 		CHECK_STATE(name); \
-		timelib_time orig; \
 		\
-		zend_object *object; \
-		php_date_obj *object_date; \
-		timelib_rel_time interval; \
+		zend_string *format, *_datetime; \
+		zval *_timezone_object; \
+		format_flags_t flags; \
 		\
 		CALL_ORIGINAL_FUNCTION(name); \
-		\
-		if (EG(exception) || Z_TYPE_P(return_value) == IS_FALSE) { \
-			RETURN_FALSE; \
-		} \
-		\
-		memcpy(&orig, Z_PHPDATE_P(return_value)->time, sizeof(timelib_time)); \
-		/* Note: createFromFormat does not handle microseconds, so a wait in seconds is necessary */ \
-		usleep(((uint32_t) COLOPL_TS_G(usleep_sec)) > 0 ? ((uint32_t) COLOPL_TS_G(usleep_sec) * 1000000) : 1000000); \
-		zval_ptr_dtor(return_value); \
-		CALL_ORIGINAL_FUNCTION(name); \
-		\
-		if (Z_PHPDATE_P(return_value)->time->y == orig.y && \
-			Z_PHPDATE_P(return_value)->time->m == orig.m && \
-			Z_PHPDATE_P(return_value)->time->d == orig.d && \
-			Z_PHPDATE_P(return_value)->time->h == orig.h && \
-			Z_PHPDATE_P(return_value)->time->i == orig.i && \
-			Z_PHPDATE_P(return_value)->time->s == orig.s && \
-			Z_PHPDATE_P(return_value)->time->us == orig.us \
-		) { \
+		if (!return_value || Z_TYPE_P(return_value) == IS_FALSE || !Z_PHPDATE_P(return_value)->time) { \
 			return; \
 		} \
 		\
+		ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_QUIET, 2, 3); \
+			Z_PARAM_STR(format) \
+			Z_PARAM_STR(_datetime) \
+			Z_PARAM_OPTIONAL \
+			Z_PARAM_OBJECT_OF_CLASS_OR_NULL(_timezone_object, php_date_get_timezone_ce()) \
+		ZEND_PARSE_PARAMETERS_END(); \
+		\
+		parse_format(ZSTR_VAL(format), &flags); \
+		\
+		timelib_time temp; \
+		timelib_rel_time interval; \
 		get_shift_interval(&interval); \
+		memcpy(&temp, Z_PHPDATE_P(return_value)->time, sizeof(timelib_time)); \
+		\
 		apply_interval(&Z_PHPDATE_P(return_value)->time, &interval); \
+		if (flags.h || flags.i || flags.s || flags.us) { \
+			Z_PHPDATE_P(return_value)->time->h = 0; \
+			Z_PHPDATE_P(return_value)->time->i = 0; \
+			Z_PHPDATE_P(return_value)->time->s = 0; \
+			Z_PHPDATE_P(return_value)->time->us = 0; \
+		} \
+		if (flags.y) { Z_PHPDATE_P(return_value)->time->y = temp.y; } \
+		if (flags.m) { Z_PHPDATE_P(return_value)->time->m = temp.m; } \
+		if (flags.d) { Z_PHPDATE_P(return_value)->time->d = temp.d; } \
+		if (flags.h) { Z_PHPDATE_P(return_value)->time->h = temp.h; } \
+		if (flags.i) { Z_PHPDATE_P(return_value)->time->i = temp.i; } \
+		if (flags.s) { Z_PHPDATE_P(return_value)->time->s = temp.s; } \
+		if (flags.us) { Z_PHPDATE_P(return_value)->time->us = temp.us; } \
+		\
+		timelib_update_ts(Z_PHPDATE_P(return_value)->time, NULL); \
 	}
 
 #define DEFINE_CREATE_FROM_FORMAT(name) \
