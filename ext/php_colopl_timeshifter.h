@@ -29,7 +29,7 @@ bool get_is_hooked();
 extern zend_module_entry colopl_timeshifter_module_entry;
 # define phpext_colopl_timeshifter_ptr &colopl_timeshifter_module_entry
 
-# define PHP_COLOPL_TIMESHIFTER_VERSION "1.0.1"
+# define PHP_COLOPL_TIMESHIFTER_VERSION "1.1.0"
 
 ZEND_BEGIN_MODULE_GLOBALS(colopl_timeshifter)
 	struct pdo_dbh_methods hooked_mysql_driver_methods;
