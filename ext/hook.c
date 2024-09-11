@@ -179,7 +179,8 @@ static inline void apply_interval(timelib_time **time, timelib_rel_time *interva
 		CHECK_STATE(name); \
 		\
 		timelib_time *current, *shifted, *created; \
-		zend_string *format; \
+		zend_string *format, *_datetime; \
+		zval *_timezone_object; \
 		format_flags_t flags; \
 		\
 		CALL_ORIGINAL_FUNCTION(name); \
@@ -189,7 +190,9 @@ static inline void apply_interval(timelib_time **time, timelib_rel_time *interva
 		\
 		ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_QUIET, 2, 3); \
 			Z_PARAM_STR(format) \
+			Z_PARAM_STR(_datetime) \
 			Z_PARAM_OPTIONAL \
+			Z_PARAM_OBJECT_OF_CLASS_OR_NULL(_timezone_object, php_date_get_timezone_ce()) \
 		ZEND_PARSE_PARAMETERS_END(); \
 		parse_format(ZSTR_VAL(format), &flags); \
 		\
