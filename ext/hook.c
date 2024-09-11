@@ -32,7 +32,7 @@
 #endif
 
 typedef struct _format_flags_t {
-	bool y, m, d, h, i, s, us;
+	bool y, m, d, h, i, s, us, direct;
 } format_flags_t;
 
 static inline void parse_format(char *format, format_flags_t *flags) {
@@ -79,13 +79,6 @@ static inline void parse_format(char *format, format_flags_t *flags) {
 			case 'i':
 				flags->i = true;
 				break;
-			case 'e':
-			case 'O':
-			case 'p':
-			case 'P':
-				flags->h = true;
-				flags->i = true;
-				break;
 			case 's':
 				flags->s = true;
 				break;
@@ -93,6 +86,12 @@ static inline void parse_format(char *format, format_flags_t *flags) {
 			case 'u':
 				flags->us = true;
 				break;
+			case 'e':
+			case 'O':
+			case 'p':
+			case 'P':
+			case 'T':
+				flags->direct = true;
 			case '!':
 			case '|':
 			case 'U':
@@ -187,7 +186,6 @@ static inline void apply_interval(timelib_time **time, timelib_rel_time *interva
 	static void hook_##fname(INTERNAL_FUNCTION_PARAMETERS) { \
 		CHECK_STATE(name); \
 		\
-		timelib_time *shifted, *created; \
 		zend_string *format, *_datetime; \
 		zval *_timezone_object; \
 		format_flags_t flags; \
@@ -203,21 +201,37 @@ static inline void apply_interval(timelib_time **time, timelib_rel_time *interva
 			Z_PARAM_OPTIONAL \
 			Z_PARAM_OBJECT_OF_CLASS_OR_NULL(_timezone_object, php_date_get_timezone_ce()) \
 		ZEND_PARSE_PARAMETERS_END(); \
+		\
 		parse_format(ZSTR_VAL(format), &flags); \
 		\
-		shifted = get_shifted_timelib_time(); \
-		created = Z_PHPDATE_P(return_value)->time; \
+		if (flags.direct) { \
+			timelib_rel_time interval; \
+			get_shift_interval(&interval); \
+			apply_interval(&Z_PHPDATE_P(return_value)->time, &interval); \
+		} else { \
+			timelib_time *shifted, *created; \
+			shifted = get_shifted_timelib_time(); \
+			created = Z_PHPDATE_P(return_value)->time; \
+			\
+			if (!flags.y) { created->y = shifted->y; } \
+			if (!flags.m) { created->m = shifted->m; } \
+			if (!flags.d) { created->d = shifted->d; } \
+			if (flags.h || flags.i || flags.s || flags.us) { \
+				created->h = (created->h != 0) ? created->h : 0; \
+				created->i = (created->i != 0) ? created->i : 0; \
+				created->s = (created->s != 0) ? created->s : 0; \
+				created->us = (created->us != 0) ? created->us : 0; \
+			} else { \
+				created->h = shifted->h; \
+				created->i = shifted->i; \
+				created->s = shifted->s; \
+				created->us = 0; \
+			} \
+			\
+			timelib_time_dtor(shifted); \
+		} \
 		\
-		if (!flags.y) { created->y = shifted->y; } \
-		if (!flags.m) { created->m = shifted->m; } \
-		if (!flags.d) { created->d = shifted->d; } \
-		if (!flags.h && created->h != 0) { created->h = shifted->h; } \
-		if (!flags.i && created->i != 0) { created->i = shifted->i; } \
-		if (!flags.s && created->s != 0) { created->s = shifted->s; } \
-		if (!flags.us && created->us != 0) { created->us = shifted->us; } \
-		\
-		timelib_update_ts(created, NULL); \
-		timelib_time_dtor(shifted); \
+		timelib_update_ts(Z_PHPDATE_P(return_value)->time, NULL); \
 	}
 
 #define DEFINE_CREATE_FROM_FORMAT(name) \
