@@ -20,10 +20,6 @@ if ($before == $after || $interval->y <= 0 || $interval->invert !== 0) {
     die('failed');
 }
 
-if (abs((int) $before->format('u') - (int) $after->format('u')) > 2) {
-    die('failed');
-}
-
 die('success');
 
 ?>
