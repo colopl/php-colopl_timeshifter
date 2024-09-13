@@ -168,7 +168,7 @@ static inline void apply_interval(timelib_time **time, timelib_rel_time *interva
 			return; \
 		} \
 		\
-		if (datetime && is_fixed_time_str(datetime, timezone)) { \
+		if (datetime && is_fixed_time_str(datetime, timezone) == 1) { \
 			return; \
 		} \
 		\
@@ -283,7 +283,7 @@ static inline void apply_interval(timelib_time **time, timelib_rel_time *interva
 		COLOPL_TS_G(orig_##name) = NULL; \
 	} while (0);
 
-static inline bool is_fixed_time_str(zend_string *datetime, zval *timezone)
+static inline int is_fixed_time_str(zend_string *datetime, zval *timezone)
 {
 	zval before_zv, after_zv;
 	php_date_obj *before, *after;
@@ -292,13 +292,20 @@ static inline bool is_fixed_time_str(zend_string *datetime, zval *timezone)
 
 	php_date_instantiate(ce, &before_zv);
 	before = Z_PHPDATE_P(&before_zv);
-	php_date_initialize(before, ZSTR_VAL(datetime), ZSTR_LEN(datetime), NULL, timezone, 0);
+	if (!php_date_initialize(before, ZSTR_VAL(datetime), ZSTR_LEN(datetime), NULL, timezone, 0)) {
+		zval_ptr_dtor(&before_zv);
+		return FAILURE;
+	}
 
 	usleep(((uint32_t) COLOPL_TS_G(usleep_sec)) > 0 ? (uint32_t) COLOPL_TS_G(usleep_sec) : 1);
 
 	php_date_instantiate(ce, &after_zv);
 	after = Z_PHPDATE_P(&after_zv);
-	php_date_initialize(after, ZSTR_VAL(datetime), ZSTR_LEN(datetime), NULL, timezone, 0);
+	if (!php_date_initialize(after, ZSTR_VAL(datetime), ZSTR_LEN(datetime), NULL, timezone, 0)) {
+		zval_ptr_dtor(&before_zv);
+		zval_ptr_dtor(&after_zv);
+		return FAILURE;
+	}
 
 	is_fixed_time_str = before->time->y == after->time->y
 		&& before->time->m == after->time->m
@@ -312,7 +319,7 @@ static inline bool is_fixed_time_str(zend_string *datetime, zval *timezone)
 	zval_ptr_dtor(&before_zv);
 	zval_ptr_dtor(&after_zv);
 
-	return is_fixed_time_str;
+	return (int) is_fixed_time_str;
 }
 
 static inline timelib_time *get_current_timelib_time(timelib_tzinfo *tzi)
@@ -518,7 +525,7 @@ static inline void date_create_common(INTERNAL_FUNCTION_PARAMETERS, zend_class_e
 		RETVAL_FALSE;
 	}
 
-	if (time_str && is_fixed_time_str(time_str, timezone_object)) {
+	if (time_str && is_fixed_time_str(time_str, timezone_object) == 1) {
 		return;
 	}
 
@@ -664,6 +671,7 @@ static void hook_strtotime(INTERNAL_FUNCTION_PARAMETERS)
 	zend_string *times, *times_lower;
 	zend_long preset_ts;
 	bool preset_ts_is_null = true;
+	int is_fixed_ret;
 
 	ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_QUIET, 1, 2)
 		Z_PARAM_STR(times);
@@ -679,7 +687,9 @@ static void hook_strtotime(INTERNAL_FUNCTION_PARAMETERS)
 	}
 	zend_string_release(times_lower);
 
-	if (!preset_ts_is_null || is_fixed_time_str(times, NULL) ) {
+	is_fixed_ret = is_fixed_time_str(times, NULL);
+
+	if (!preset_ts_is_null || is_fixed_ret == 1 || is_fixed_ret == FAILURE) {
 		CALL_ORIGINAL_FUNCTION(strtotime);
 		return;
 	}
