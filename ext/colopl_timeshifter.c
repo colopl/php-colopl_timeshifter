@@ -165,6 +165,7 @@ PHP_MINFO_FUNCTION(colopl_timeshifter)
 {
 	php_info_print_table_start();
 	php_info_print_table_header(2, "colopl_timeshifter support", "enabled");
+	php_info_print_table_row(2, "timeshifter version", PHP_COLOPL_TIMESHIFTER_VERSION);
 	php_info_print_table_end();
 }
 
