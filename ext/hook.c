@@ -285,10 +285,23 @@ static inline void apply_interval(timelib_time **time, timelib_rel_time *interva
 
 static inline int is_fixed_time_str(zend_string *datetime, zval *timezone)
 {
+	zend_string *datetime_lower;
 	zval before_zv, after_zv;
 	php_date_obj *before, *after;
 	zend_class_entry *ce = php_date_get_immutable_ce();
 	bool is_fixed_time_str;
+
+	datetime_lower = zend_string_tolower(datetime);
+	if (strncmp(ZSTR_VAL(datetime_lower), "now", 3) == 0 ||
+		strncmp(ZSTR_VAL(datetime_lower), "yesterday", 9) == 0 ||
+		strncmp(ZSTR_VAL(datetime_lower), "today", 5) == 0 ||
+		strncmp(ZSTR_VAL(datetime_lower), "tomorrow", 8) == 0
+	) {
+		zend_string_release(datetime_lower);
+		return 2;
+	}
+
+	zend_string_release(datetime_lower);
 
 	php_date_instantiate(ce, &before_zv);
 	before = Z_PHPDATE_P(&before_zv);
@@ -679,14 +692,6 @@ static void hook_strtotime(INTERNAL_FUNCTION_PARAMETERS)
 		Z_PARAM_LONG_OR_NULL(preset_ts, preset_ts_is_null);
 	ZEND_PARSE_PARAMETERS_END();
 
-	/* "now" special case */
-	times_lower = zend_string_tolower(times);
-	if (strncmp(ZSTR_VAL(times_lower), "now", 3) == 0) {
-		zend_string_release(times_lower);
-		RETURN_LONG((zend_long) get_shifted_time(NULL));
-	}
-	zend_string_release(times_lower);
-
 	is_fixed_ret = is_fixed_time_str(times, NULL);
 
 	if (!preset_ts_is_null || is_fixed_ret == 1 || is_fixed_ret == FAILURE) {
@@ -694,12 +699,16 @@ static void hook_strtotime(INTERNAL_FUNCTION_PARAMETERS)
 		return;
 	}
 
-	/* Call original function with params. */
-	zval *params = NULL;
-	uint32_t param_count = 0;
-	zend_parse_parameters(ZEND_NUM_ARGS(), "+", &params, &param_count);
-	ZVAL_LONG(&params[1], get_shifted_time(NULL));
-	CALL_ORIGINAL_FUNCTION_WITH_PARAMS(strtotime, params, param_count);
+	if (is_fixed_ret == 2) {
+		CALL_ORIGINAL_FUNCTION(strtotime);
+	} else {
+		/* Call original function with params. */
+		zval *params = NULL;
+		uint32_t param_count = 0;
+		zend_parse_parameters(ZEND_NUM_ARGS(), "+", &params, &param_count);
+		ZVAL_LONG(&params[1], get_shifted_time(NULL));
+		CALL_ORIGINAL_FUNCTION_WITH_PARAMS(strtotime, params, param_count);
+	}
 
 	/* Apply interval. */
 	timelib_time *t = timelib_time_ctor();
