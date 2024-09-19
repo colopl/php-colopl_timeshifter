@@ -122,10 +122,12 @@ static inline void apply_interval(timelib_time **time, timelib_rel_time *interva
 		fci->params = _params; \
 		fci->named_params = NULL; \
 		fcc->function_handler = zend_hash_str_find_ptr(CG(function_table), #_name, strlen(#_name)); \
+		zif_handler *hook_handler = fcc->function_handler->internal_function.handler; \
 		fcc->function_handler->internal_function.handler = COLOPL_TS_G(orig_##_name); \
 		fcc->called_scope = NULL; \
 		fcc->object = NULL; \
 		zend_call_function(fci, fcc); \
+		fcc->function_handler->internal_function.handler = hook_handler; \
 		efree(fci); \
 		efree(fcc); \
 	} while (0);
@@ -695,29 +697,17 @@ static void hook_strtotime(INTERNAL_FUNCTION_PARAMETERS)
 	is_fixed_ret = is_fixed_time_str(times, NULL);
 
 	if (!preset_ts_is_null || is_fixed_ret == 1 || is_fixed_ret == FAILURE) {
+		//php_error_docref(NULL, E_NOTICE, "hook_strtotime is calling original function (%s, %ld)", ZSTR_VAL(times), preset_ts);
 		CALL_ORIGINAL_FUNCTION(strtotime);
 		return;
 	}
 
-	if (is_fixed_ret == 2) {
-		CALL_ORIGINAL_FUNCTION(strtotime);
-	} else {
-		/* Call original function with params. */
-		zval *params = NULL;
-		uint32_t param_count = 0;
-		zend_parse_parameters(ZEND_NUM_ARGS(), "+", &params, &param_count);
-		ZVAL_LONG(&params[1], get_shifted_time(NULL));
-		CALL_ORIGINAL_FUNCTION_WITH_PARAMS(strtotime, params, param_count);
-	}
-
-	/* Apply interval. */
-	timelib_time *t = timelib_time_ctor();
-	timelib_rel_time interval;
-	timelib_unixtime2gmt(t, Z_LVAL_P(return_value));
-	get_shift_interval(&interval);
-	apply_interval(&t, &interval);
-	RETVAL_LONG(timelib_date_to_int(t, NULL));
-	timelib_time_dtor(t);
+	/* Call original function based on shifted time */
+	zval params[2];
+	ZVAL_STR(&params[0], times);
+	ZVAL_LONG(&params[1], get_shifted_time(NULL));
+	//php_error_docref(NULL, E_NOTICE, "hook_strtotime is calling original function with params (%s, %ld)", Z_STRVAL_P(&params[0]), Z_LVAL_P(&params[1]));
+	CALL_ORIGINAL_FUNCTION_WITH_PARAMS(strtotime, params, 2);
 }
 
 #if HAVE_GETTIMEOFDAY

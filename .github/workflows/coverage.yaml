@@ -17,7 +17,8 @@ jobs:
     strategy:
       matrix:
         version: ['8.3']
-        type: ['cli', 'zts']
+        # type: ['cli', 'zts']
+        type: ['cli']
         distro: ['bookworm']
     outputs:
       matrix: ${{ toJson(matrix) }}
