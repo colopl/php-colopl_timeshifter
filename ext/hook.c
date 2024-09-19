@@ -697,7 +697,6 @@ static void hook_strtotime(INTERNAL_FUNCTION_PARAMETERS)
 	is_fixed_ret = is_fixed_time_str(times, NULL);
 
 	if (!preset_ts_is_null || is_fixed_ret == 1 || is_fixed_ret == FAILURE) {
-		//php_error_docref(NULL, E_NOTICE, "hook_strtotime is calling original function (%s, %ld)", ZSTR_VAL(times), preset_ts);
 		CALL_ORIGINAL_FUNCTION(strtotime);
 		return;
 	}
@@ -706,7 +705,6 @@ static void hook_strtotime(INTERNAL_FUNCTION_PARAMETERS)
 	zval params[2];
 	ZVAL_STR(&params[0], times);
 	ZVAL_LONG(&params[1], get_shifted_time(NULL));
-	//php_error_docref(NULL, E_NOTICE, "hook_strtotime is calling original function with params (%s, %ld)", Z_STRVAL_P(&params[0]), Z_LVAL_P(&params[1]));
 	CALL_ORIGINAL_FUNCTION_WITH_PARAMS(strtotime, params, 2);
 }
 
