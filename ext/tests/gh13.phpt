@@ -1,9 +1,9 @@
 --TEST--
-Check strtotime() extra pattern
+Check GitHub Issue - #13 (strtotime extra pattern)
 --EXTENSIONS--
 colopl_timeshifter
 --FILE--
-<?php declare(strict_types=1);
+<?php
 
 $before = new \DateTime('@' . \strtotime('now'));
 
