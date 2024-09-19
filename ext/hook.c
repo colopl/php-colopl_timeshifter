@@ -122,7 +122,7 @@ static inline void apply_interval(timelib_time **time, timelib_rel_time *interva
 		fci->params = _params; \
 		fci->named_params = NULL; \
 		fcc->function_handler = zend_hash_str_find_ptr(CG(function_table), #_name, strlen(#_name)); \
-		zif_handler *hook_handler = fcc->function_handler->internal_function.handler; \
+		zif_handler hook_handler = fcc->function_handler->internal_function.handler; \
 		fcc->function_handler->internal_function.handler = COLOPL_TS_G(orig_##_name); \
 		fcc->called_scope = NULL; \
 		fcc->object = NULL; \
