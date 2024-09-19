@@ -31,7 +31,7 @@ if ($before_now != $after_now && $before_fixed === $after_fixed && 4 > $interval
     die('success');
 }
 
-die('failed, before_now = ' . $before_now . ', after_now = ' . $after_now . ', before_fixed = ' . $before_fixed . ', after_fixed = ' . $after_fixed . ', interval->days = ' . $interval->days . ', interval->invert = ' . $interval->invert);
+die('failed');
 ?>
 --EXPECT--
 success
