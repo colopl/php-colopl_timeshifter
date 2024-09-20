@@ -113,23 +113,23 @@ static inline void apply_interval(timelib_time **time, timelib_rel_time *interva
 
 #define CALL_ORIGINAL_FUNCTION_WITH_PARAMS(_name, _params, _param_count) \
 	do { \
-		zend_fcall_info *fci = ecalloc(1, sizeof(zend_fcall_info)); \
-		zend_fcall_info_cache *fcc = ecalloc(1, sizeof(zend_fcall_info_cache)); \
-		fci->size = sizeof(zend_fcall_info); \
-		fci->object = NULL; \
-		fci->retval = return_value; \
-		fci->param_count = _param_count; \
-		fci->params = _params; \
-		fci->named_params = NULL; \
-		fcc->function_handler = zend_hash_str_find_ptr(CG(function_table), #_name, strlen(#_name)); \
-		zif_handler hook_handler = fcc->function_handler->internal_function.handler; \
-		fcc->function_handler->internal_function.handler = COLOPL_TS_G(orig_##_name); \
-		fcc->called_scope = NULL; \
-		fcc->object = NULL; \
-		zend_call_function(fci, fcc); \
-		fcc->function_handler->internal_function.handler = hook_handler; \
-		efree(fci); \
-		efree(fcc); \
+		zend_fcall_info fci = { \
+			.size = sizeof(zend_fcall_info), \
+			.retval = return_value, \
+			.param_count = _param_count, \
+			.params = _params, \
+		}; \
+		zend_function fnc = { \
+			.type = ZEND_INTERNAL_FUNCTION, \
+		}; \
+		zend_fcall_info_cache fcc = { \
+			.function_handler = &fnc, \
+		}; \
+		zend_function *src = (zend_function *) zend_hash_str_find_ptr(CG(function_table), #_name, strlen(#_name)); \
+		ZEND_ASSERT(src); \
+		memcpy(&fnc.internal_function, &src->internal_function, sizeof(zend_internal_function)); \
+		fnc.internal_function.handler = COLOPL_TS_G(orig_##_name); \
+		zend_call_function(&fci, &fcc); \
 	} while (0);
 
 #define CALL_ORIGINAL_FUNCTION(name) \
