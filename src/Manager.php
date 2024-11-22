@@ -71,11 +71,8 @@ final class Manager
          */
         $actualInterval = clone $dateInterval;
         if (is_int($actualInterval->days) && $actualInterval->days > 0 && $actualInterval->days !== $actualInterval->d) {
-            /** @psalm-suppress InaccessibleProperty */
             $actualInterval->d = $actualInterval->days;
-            /** @psalm-suppress InaccessibleProperty */
             $actualInterval->y = 0;
-            /** @psalm-suppress InaccessibleProperty */
             $actualInterval->m = 0;
         }
 
