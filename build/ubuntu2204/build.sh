@@ -8,7 +8,7 @@ cd "/tmp/ext"
   checkinstall \
         --pkgname="php-colopl-timeshifter" \
         --pkglicense="PHP-3.01" \
-        --pkgversion="9.9.9" \
+        --pkgversion="${VERSION}" \
         --pkggroup="php" \
         --maintainer="g-kudo@colopl.co.jp" \
         --requires="php" \
