@@ -30,11 +30,13 @@ jobs:
           load: true
           tags: "pskel-build-ubuntu2204-${{ matrix.platform }}"
       - name: Build Extension with Container
+        id: build_container
         run: |
+          echo "arch=$(echo "${{ matrix.platform }}" | | sed 's/^linux\///g' | sed 's/\//_/g)" >> $GITHUB_OUTPUT
           mkdir "artifacts"
           docker run --env VERSION="${{ github.ref_name }}" --rm -v"$(pwd)/artifacts:/tmp/artifacts" -i "pskel-build-ubuntu2204-${{ matrix.platform }}"
       - name: Upload deb Packages
         uses: actions/upload-artifact@v4
         with:
-          name: ubuntu_2204_debs-${{ matrix.platform }}
+          name: ubuntu_2204_debs_${{ steps.build_container.outputs.arch }}
           path: artifacts/
