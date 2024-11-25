@@ -32,7 +32,7 @@ jobs:
       - name: Build Extension with Container
         run: |
           mkdir "artifacts"
-          docker run --env VERSION="${{ github.ref_name || '9999.9999.9999' }}" --rm -v"$(pwd)/artifacts:/tmp/artifacts" -i "pskel-build-ubuntu2204-$(arch)"
+          docker run --env VERSION="${{ github.ref_name || '9999.9999.9999' }}" --rm -v"$(pwd)/artifacts:/tmp/artifacts" -i "pskel-build-ubuntu2204-${{ matrix.platform }}"
       - name: Upload deb Packages
         uses: actions/upload-artifact@v4
         with:
