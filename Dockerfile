@@ -17,10 +17,10 @@ RUN docker-php-source extract \
  &&   apt-get update \
  &&   DEBIAN_FRONTEND="noninteractive" apt-get install -y "bison" "re2c" "zlib1g-dev" "libsqlite3-dev" "libxml2-dev" \
         "autoconf" "pkg-config" "make" "gcc" "valgrind" "rsync" "git" "ssh" \
-        "clang-20" \
+        "clang-19" \
         "lcov" "gzip" \
- &&   update-alternatives --install "/usr/bin/clang" clang "/usr/bin/clang-20" 100 \
- &&   update-alternatives --install "/usr/bin/clang++" clang++ "/usr/bin/clang++-20" 100; \
+ &&   update-alternatives --install "/usr/bin/clang" clang "/usr/bin/clang-19" 100 \
+ &&   update-alternatives --install "/usr/bin/clang++" clang++ "/usr/bin/clang++-19" 100; \
     else \
       apk add --no-cache "bison" "zlib-dev" "sqlite-dev" "libxml2-dev" \
         "autoconf" "pkgconfig" "make" "gcc" "g++" "valgrind" "valgrind-dev" \
