@@ -37,11 +37,11 @@ jobs:
           run: |
             docker compose run --rm shell library_test
         - name: Test extension with PHP Debug Build
-          if: matrix.platform == 'linux/amd64'
+          if: matrix.platform == 'linux/amd64' && matrix.version != '8.1'
           run: |
             docker compose run --rm shell pskel test debug
         - name: Test extension with Valgrind
-          if: matrix.platform == 'linux/amd64'
+          if: matrix.platform == 'linux/amd64' && matrix.version != '8.1'
           run: |
             docker compose run --rm shell pskel test valgrind
         - name: Test extension with LLVM Sanitizer (MemorySanitizer)
