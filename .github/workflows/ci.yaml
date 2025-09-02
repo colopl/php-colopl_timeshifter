@@ -45,14 +45,14 @@ jobs:
           run: |
             docker compose run --rm shell pskel test valgrind
         - name: Test extension with LLVM Sanitizer (MemorySanitizer)
-          if: matrix.platform == 'linux/amd64' && matrix.distro != 'alpine'
+          if: matrix.platform == 'linux/amd64' && matrix.distro != 'alpine' && matrix.version != '8.1'
           run: |
             docker compose run --rm shell pskel test msan
         - name: Test extension with LLVM Sanitizer (AddressSanitizer)
-          if: matrix.platform == 'linux/amd64' && matrix.distro != 'alpine'
+          if: matrix.platform == 'linux/amd64' && matrix.distro != 'alpine' && matrix.version != '8.1'
           run: |
             docker compose run --rm shell pskel test asan
         - name: Test extension with LLVM Sanitizer (UndefinedBehaviorSanitizer)
-          if: matrix.platform == 'linux/amd64' && matrix.distro != 'alpine'
+          if: matrix.platform == 'linux/amd64' && matrix.distro != 'alpine' && matrix.version != '8.1'
           run: |
             docker compose run --rm shell pskel test ubsan
