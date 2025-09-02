@@ -1,6 +1,4 @@
 [submodule "ext/third_party/timelib"]
 	path = ext/third_party/timelib
 	url = https://github.com/derickr/timelib.git
-[submodule "derickr/timelib"]
-	path = ext/third_party/timelib
-	url = https://github.com/derickr/timelib.git
+	ignore = dirty
