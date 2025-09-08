@@ -15,7 +15,7 @@ jobs:
     strategy:
       max-parallel: 10
       matrix:
-        platform: ['ubuntu-24.04', 'ubuntu-24.04-arm']
+        platform: ['linux/amd64', 'linux/arm64/v8', 'linux/s390x']
         version: ['8.1', '8.2', '8.3', '8.4', '8.5.0beta2']
         type: ['cli', 'zts']
         distro: ['trixie', 'alpine']
