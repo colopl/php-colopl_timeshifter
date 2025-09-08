@@ -95,6 +95,9 @@ EOF
           CONFIGURE_OPTS="--enable-address-sanitizer"
           build_php_if_not_exists "asan"
           CFLAGS="${CFLAGS} -fsanitize=address"
+          if test "$(php -r 'echo PHP_VERSION_ID;')" -ge 80500; then
+            CFLAGS="${CFLAGS} -fno-omit-frame-pointer -mno-stackrealign -fno-stack-protector"
+          fi
           LDFLAGS="${LDFLAGS} -fsanitize=address"
           ;;
         ubsan)

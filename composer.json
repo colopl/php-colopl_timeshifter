@@ -3,7 +3,7 @@
     "description": "Current time modification extension wrapper library.",
     "type": "library",
     "require": {
-        "php": "~8.1.0 || ~8.2.0 || ~8.3.0 || ~8.4.1",
+        "php": "~8.1.0 || ~8.2.0 || ~8.3.0 || ~8.4.1 || ~8.5.0beta2",
         "ext-colopl_timeshifter": "^1.0"
     },
     "require-dev": {
