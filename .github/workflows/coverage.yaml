@@ -35,7 +35,7 @@ jobs:
         run: |
           docker compose run -v "$(pwd)/ext:/ext" --rm shell pskel coverage
       - name: Upload coverage to artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: coverage-${{ matrix.version }}-${{ matrix.type }}-${{ matrix.distro }}
           path: ${{ github.workspace }}/ext/lcov.info
