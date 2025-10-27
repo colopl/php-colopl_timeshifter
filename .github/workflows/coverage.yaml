@@ -46,7 +46,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
       - name: Download coverage artifacts
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
       - name: Merge and filter coverages
         run: |
           sudo apt-get install -y "lcov"
