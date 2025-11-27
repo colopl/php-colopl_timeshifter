@@ -47,22 +47,22 @@ jobs:
           run: |
             docker compose run --rm shell library_test
         - name: Test extension with PHP Debug Build
-          if: matrix.platform == 'linux/amd64' && matrix.version != '8.1'
+          if: matrix.platform != 'linux/s390x' && matrix.version != '8.1'
           run: |
             docker compose run --rm --env CONFIGURE_OPTS="--enable-mysqlnd --with-pdo-mysql" shell pskel test debug
         - name: Test extension with Valgrind
-          if: matrix.platform == 'linux/amd64' && matrix.version != '8.1'
+          if: matrix.platform != 'linux/s390x' && matrix.version != '8.1'
           run: |
             docker compose run --rm --env CONFIGURE_OPTS="--enable-mysqlnd --with-pdo-mysql" shell pskel test valgrind
         - name: Test extension with LLVM Sanitizer (MemorySanitizer)
-          if: matrix.platform == 'linux/amd64' && matrix.distro != 'alpine' && matrix.version != '8.1'
+          if: matrix.platform != 'linux/s390x' && matrix.distro != 'alpine' && matrix.version != '8.1'
           run: |
             docker compose run --rm --env CONFIGURE_OPTS="--enable-mysqlnd --with-pdo-mysql" shell pskel test msan
         - name: Test extension with LLVM Sanitizer (AddressSanitizer)
-          if: matrix.platform == 'linux/amd64' && matrix.distro != 'alpine' && matrix.version != '8.1'
+          if: matrix.platform != 'linux/s390x' && matrix.distro != 'alpine' && matrix.version != '8.1'
           run: |
             docker compose run --rm --env CONFIGURE_OPTS="--enable-mysqlnd --with-pdo-mysql" shell pskel test asan
         - name: Test extension with LLVM Sanitizer (UndefinedBehaviorSanitizer)
-          if: matrix.platform == 'linux/amd64' && matrix.distro != 'alpine' && matrix.version != '8.1'
+          if: matrix.platform != 'linux/s390x' && matrix.distro != 'alpine' && matrix.version != '8.1'
           run: |
             docker compose run --rm --env CONFIGURE_OPTS="--enable-mysqlnd --with-pdo-mysql" shell pskel test ubsan
