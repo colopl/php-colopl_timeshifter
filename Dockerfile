@@ -1,6 +1,6 @@
 ARG PLATFORM=${BUILDPLATFORM:-linux/amd64}
 ARG IMAGE=php
-ARG TAG=8.4-cli-trixie
+ARG TAG=8.5-cli-trixie
 
 FROM --platform=${PLATFORM} ${IMAGE}:${TAG}
 

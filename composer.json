@@ -3,13 +3,13 @@
     "description": "Current time modification extension wrapper library.",
     "type": "library",
     "require": {
-        "php": "~8.1.0 || ~8.2.0 || ~8.3.0 || ~8.4.1",
-        "ext-colopl_timeshifter": "^1.0"
+        "php": "~8.1.0 || ~8.2.0 || ~8.3.0 || ~8.4.1 || ~8.5.0",
+        "ext-colopl_timeshifter": "^1.2"
     },
     "require-dev": {
-        "phpstan/phpstan": "^1",
-        "phpunit/phpunit": "^10",
-        "phpstan/phpstan-phpunit": "^1"
+        "phpstan/phpstan": "^2.1.32",
+        "phpunit/phpunit": "^10 || ^11 || ^12.4.4",
+        "phpstan/phpstan-phpunit": "^2.0.8"
     },
     "license": "PHP-3.01",
     "autoload": {
