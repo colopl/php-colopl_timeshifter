@@ -20,6 +20,16 @@
       "versioning": "regex:^VALGRIND_(?<major>\\d+)_(?<minor>\\d+)_(?<patch>\\d+)$"
     },
     {
+      "description": "timelib",
+      "matchManagers": [
+        "git-submodules"
+      ],
+      "matchDepNames": [
+        "ext/third_party/timelib"
+      ],
+      "versioning": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)$"
+    },
+    {
       "description": "Disable digest updates for git submodules",
       "matchManagers": [
         "git-submodules"
@@ -28,16 +38,6 @@
         "digest"
       ],
       "enabled": false
-    },
-    {
-      "description": "timelib",
-      "matchManagers": [
-        "git-submodules"
-      ],
-      "matchDepNames": [
-        "ext/third_party/timelib"
-      ],
-      "enabled": true
     }
   ]
 }
