@@ -2,3 +2,6 @@
 	path = ext/third_party/timelib
 	url = https://github.com/derickr/timelib.git
 	ignore = dirty
+[submodule "third_party/valgrind"]
+	path = third_party/valgrind
+	url = https://sourceware.org/git/valgrind.git
