@@ -4,55 +4,52 @@ on:
     branches:
         - main
   pull_request:
-  schedule:
-    - cron: '0 0 * * 1'
+  workflow_dispatch:
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref_name || github.run_id }}
+  cancel-in-progress: true
 permissions:
+  actions: read
   contents: write
+  packages: write
+  pages: write
+  id-token: write
   pull-requests: write
 jobs:
-  Linux:
-    runs-on: ubuntu-latest
-    strategy:
-      max-parallel: 10
-      matrix:
-        platform: ['linux/amd64', 'linux/arm64/v8', 'linux/s390x']
-        version: ['8.1', '8.2', '8.3', '8.4']
-        type: ['cli', 'zts']
-        distro: ['trixie', 'alpine']
-    steps:
-        - name: Checkout
-          uses: actions/checkout@v6
-          with:
-            submodules: true
-        - name: Setup QEMU
-          uses: docker/setup-qemu-action@v3
-          with:
-            platforms: "arm64,s390x"
-        - name: Setup buildx
-          uses: docker/setup-buildx-action@v3
-        - name: Build container
-          run: |
-            docker compose build --pull --no-cache --build-arg PLATFORM="${{ matrix.platform }}" --build-arg IMAGE="php" --build-arg TAG="${{ matrix.version }}-${{ matrix.type }}-${{ matrix.distro }}"
-        - name: Test extension with Bundled PHP + PHP library test
-          run: |
-            docker compose run --rm shell library_test
-        - name: Test extension with PHP Debug Build
-          if: matrix.platform == 'linux/amd64' && matrix.version != '8.1'
-          run: |
-            docker compose run --rm shell pskel test debug
-        - name: Test extension with Valgrind
-          if: matrix.platform == 'linux/amd64' && matrix.version != '8.1'
-          run: |
-            docker compose run --rm shell pskel test valgrind
-        - name: Test extension with LLVM Sanitizer (MemorySanitizer)
-          if: matrix.platform == 'linux/amd64' && matrix.distro != 'alpine' && matrix.version != '8.1'
-          run: |
-            docker compose run --rm shell pskel test msan
-        - name: Test extension with LLVM Sanitizer (AddressSanitizer)
-          if: matrix.platform == 'linux/amd64' && matrix.distro != 'alpine' && matrix.version != '8.1'
-          run: |
-            docker compose run --rm shell pskel test asan
-        - name: Test extension with LLVM Sanitizer (UndefinedBehaviorSanitizer)
-          if: matrix.platform == 'linux/amd64' && matrix.distro != 'alpine' && matrix.version != '8.1'
-          run: |
-            docker compose run --rm shell pskel test ubsan
+  Prepare:
+    uses: ./.github/workflows/ci_prepare.yaml
+  Linux_Native:
+    needs: Prepare
+    uses: ./.github/workflows/ci_native_linux.yaml
+    with:
+      artifact_name: ${{ needs.Prepare.outputs.artifact_name }}
+      artifact_run_id: ${{ needs.Prepare.outputs.artifact_run_id }}
+      archive_name: ${{ needs.Prepare.outputs.archive_name }}
+  Linux_Emulated:
+    needs: Prepare
+    uses: ./.github/workflows/ci_emulated_linux.yaml
+    with:
+      artifact_name: ${{ needs.Prepare.outputs.artifact_name }}
+      artifact_run_id: ${{ needs.Prepare.outputs.artifact_run_id }}
+      archive_name: ${{ needs.Prepare.outputs.archive_name }}
+  # macOS:
+  #   needs: Prepare
+  #   uses: ./.github/workflows/ci_macos.yaml
+  #   with:
+  #     artifact_name: ${{ needs.Prepare.outputs.artifact_name }}
+  #     artifact_run_id: ${{ needs.Prepare.outputs.artifact_run_id }}
+  #     archive_name: ${{ needs.Prepare.outputs.archive_name }}
+  # Windows:
+  #   needs: Prepare
+  #   uses: ./.github/workflows/ci_windows.yaml
+  #   with:
+  #     artifact_name: ${{ needs.Prepare.outputs.artifact_name }}
+  #     artifact_run_id: ${{ needs.Prepare.outputs.artifact_run_id }}
+  #     archive_name: ${{ needs.Prepare.outputs.archive_name }}
+  Coverage:
+    needs: Prepare
+    uses: ./.github/workflows/ci_coverage.yaml
+    with:
+      artifact_name: ${{ needs.Prepare.outputs.artifact_name }}
+      artifact_run_id: ${{ needs.Prepare.outputs.artifact_run_id }}
+      archive_name: ${{ needs.Prepare.outputs.archive_name }}

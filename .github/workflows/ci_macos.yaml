@@ -1,0 +1,101 @@
+name: CI macOS
+on:
+  workflow_call:
+    inputs:
+      artifact_name:
+        required: true
+        type: string
+      artifact_run_id:
+        required: true
+        type: string
+      archive_name:
+        required: true
+        type: string
+jobs:
+  init:
+    runs-on: ubuntu-24.04
+    outputs:
+      needs-init: ${{ steps.check.outputs.needs-init }}
+    steps:
+      - name: Download prepared workspace
+        uses: actions/download-artifact@v6
+        with:
+          name: ${{ inputs.artifact_name }}
+          path: ${{ runner.temp }}/source-archive
+          run-id: ${{ inputs.artifact_run_id }}
+          repository: ${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Extract prepared workspace
+        env:
+          ARCHIVE_NAME: ${{ inputs.archive_name }}
+        run: |
+          ARCHIVE_PATH="${RUNNER_TEMP}/source-archive/${ARCHIVE_NAME}"
+          tar -xzf "${ARCHIVE_PATH}" --strip-components=1 -C "${GITHUB_WORKSPACE}"
+          rm -f "${ARCHIVE_PATH}"
+      - name: Check if initialization is needed
+        id: check
+        run: |
+          if test -f "ext/.gitkeep" && test "$(cat "ext/.gitkeep")" = "pskel_uninitialized"; then
+            echo "needs-init=true" >> $GITHUB_OUTPUT
+          else
+            echo "needs-init=false" >> $GITHUB_OUTPUT
+          fi
+      - name: Initialize extension
+        if: steps.check.outputs.needs-init == 'true'
+        run: |
+          docker compose run -v"$(pwd)/ext:/ext" --rm shell pskel init example
+      - name: Upload initialized extension
+        if: steps.check.outputs.needs-init == 'true'
+        uses: actions/upload-artifact@v5
+        with:
+          name: initialized-ext-macos
+          path: ext/
+          retention-days: 1
+  macOS:
+    needs: init
+    runs-on: ${{ matrix.runs-on }}
+    strategy:
+      matrix:
+        runs-on:
+          - macos-15
+          - macos-15-intel
+          - macos-26
+        version: ['8.1', '8.2', '8.3', '8.4', '8.5']
+        ts: ['ts', 'nts']
+    steps:
+      - name: Download prepared workspace
+        uses: actions/download-artifact@v6
+        with:
+          name: ${{ inputs.artifact_name }}
+          path: ${{ runner.temp }}/source-archive
+          run-id: ${{ inputs.artifact_run_id }}
+          repository: ${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Extract prepared workspace
+        env:
+          ARCHIVE_NAME: ${{ inputs.archive_name }}
+        run: |
+          ARCHIVE_PATH="${RUNNER_TEMP}/source-archive/${ARCHIVE_NAME}"
+          tar -xzf "${ARCHIVE_PATH}" --strip-components=1 -C "${GITHUB_WORKSPACE}"
+          rm -f "${ARCHIVE_PATH}"
+      - name: Download initialized extension
+        if: needs.init.outputs.needs-init == 'true'
+        uses: actions/download-artifact@v6
+        with:
+          name: initialized-ext-macos
+          path: ext/
+      - name: Setup PHP
+        uses: shivammathur/setup-php@44454db4f0199b8b9685a5d763dc37cbf79108e1 # v2.36.0
+        with:
+          php-version: ${{ matrix.version }}
+          extensions: none
+        env:
+          phpts: ${{ matrix.ts }}
+      - name: Test extension
+        run: |
+          cd "ext"
+          phpize
+          ./configure --with-php-config="$(which "php-config")"
+          make -j"$(sysctl -n hw.ncpu)"
+          make test
+          cd -
