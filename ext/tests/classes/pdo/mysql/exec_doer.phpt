@@ -16,7 +16,21 @@ $before = new \DateTimeImmutable();
 
 \Colopl\ColoplTimeShifter\register_hook($shift_interval);
 
-$pdo = new \PDO('mysql:dbname=testing;host=mysql', 'testing', 'testing');
+$pdo = (static function () {
+    $attempt = 0;
+    $delay = 100000;
+    while (true) {
+        try {
+            return new \PDO('mysql:dbname=testing;host=mysql', 'testing', 'testing');
+        } catch (\PDOException $exception) {
+            if (++$attempt >= 5) {
+                throw $exception;
+            }
+        }
+        usleep($delay);
+        $delay *= 2;
+    }
+})();
 
 $pdo->exec('DROP TABLE IF EXISTS testing;');
 $pdo->exec('CREATE TABLE IF NOT EXISTS testing (
