@@ -21,7 +21,7 @@ $pdo = (static function () {
         try {
             return new \PDO('mysql:dbname=mysql;host=tidb;port=4000', 'root', '');
         } catch (\PDOException $exception) {
-            if (++$attempt >= 5) {
+            if (++$attempt >= 10) {
                 throw $exception;
             }
         }

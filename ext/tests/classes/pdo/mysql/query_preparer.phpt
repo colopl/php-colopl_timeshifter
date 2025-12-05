@@ -23,7 +23,7 @@ $pdo = (static function () {
         try {
             return new \PDO('mysql:host=mysql', 'testing', 'testing');
         } catch (\PDOException $exception) {
-            if (++$attempt >= 5) {
+            if (++$attempt >= 10) {
                 throw $exception;
             }
         }
