@@ -16,7 +16,21 @@ $before = new \DateTimeImmutable();
 
 \Colopl\ColoplTimeShifter\register_hook($shift_interval);
 
-$pdo = new \PDO('mysql:host=mysql', 'testing', 'testing');
+$pdo = (static function () {
+    $attempt = 0;
+    $delay = 100000;
+    while (true) {
+        try {
+            return new \PDO('mysql:host=mysql', 'testing', 'testing');
+        } catch (\PDOException $exception) {
+            if (++$attempt >= 10) {
+                throw $exception;
+            }
+        }
+        usleep($delay);
+        $delay *= 2;
+    }
+})();
 
 /* NOW(), CURRENT_TIMESTAMP, CURRENT_TIMESTAMP(), UTC_TIMESTAMP() */
 foreach ($pdo->query('
