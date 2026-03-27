@@ -1,0 +1,12 @@
+# Exclude non-essential files from git archive (used by PIE/Composer downloads)
+/.github/          export-ignore
+/build/            export-ignore
+/patches/          export-ignore
+/tests/            export-ignore
+/third_party/      export-ignore
+/ext/tests/        export-ignore
+Dockerfile         export-ignore
+compose.yaml       export-ignore
+library_test.sh    export-ignore
+phpstan.neon       export-ignore
+pskel.sh           export-ignore
