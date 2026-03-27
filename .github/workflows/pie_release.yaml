@@ -9,33 +9,73 @@ permissions:
   contents: read
 
 jobs:
-  create-draft-release:
-    runs-on: ubuntu-latest
+  Prepare:
+    runs-on: ubuntu-24.04
+    outputs:
+      artifact_name: ${{ steps.metadata.outputs.artifact_name }}
+      archive_name: ${{ steps.metadata.outputs.archive_name }}
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+          fetch-tags: true
+          ref: ${{ github.ref }}
+          submodules: recursive
+      - name: Record artifact metadata
+        id: metadata
+        run: |
+          ARTIFACT_NAME="pie-source-${GITHUB_RUN_ID}"
+          echo "artifact_name=${ARTIFACT_NAME}" >> "${GITHUB_OUTPUT}"
+          echo "archive_name=${ARTIFACT_NAME}.tar.gz" >> "${GITHUB_OUTPUT}"
+      - name: Create workspace archive
+        id: archive
+        env:
+          ARCHIVE_NAME: ${{ steps.metadata.outputs.archive_name }}
+        run: |
+          ARCHIVE_PATH="${RUNNER_TEMP}/${ARCHIVE_NAME}"
+          REPO_DIR="$(basename "${GITHUB_WORKSPACE}")"
+          tar -czf "${ARCHIVE_PATH}" -C "$(dirname "${GITHUB_WORKSPACE}")" "${REPO_DIR}"
+          echo "archive-path=${ARCHIVE_PATH}" >> "${GITHUB_OUTPUT}"
+      - name: Upload Prepared workspace
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.metadata.outputs.artifact_name }}
+          path: ${{ steps.archive.outputs.archive-path }}
+          retention-days: 1
+  DraftRelease:
+    needs: [ Prepare ]
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - name: Download Prepared workspace
+        uses: actions/download-artifact@v8
         with:
-          fetch-tags: 'true'
-          ref: ${{ github.ref }}
-          submodules: recursive
+          name: ${{ needs.Prepare.outputs.artifact_name }}
+          path: ${{ runner.temp }}/source-archive
+      - name: Extract Prepared workspace
+        env:
+          ARCHIVE_NAME: ${{ needs.Prepare.outputs.archive_name }}
+        run: |
+          ARCHIVE_PATH="${RUNNER_TEMP}/source-archive/${ARCHIVE_NAME}"
+          tar -xzf "${ARCHIVE_PATH}" --strip-components=1 -C "${GITHUB_WORKSPACE}"
+          rm -f "${ARCHIVE_PATH}"
       - name: Create source archive with submodules
         run: |
-          ARCHIVE_NAME="${{ github.event.repository.name }}-${{ github.ref_name }}"
-          git archive --format=tar --prefix="${ARCHIVE_NAME}/" HEAD > "${ARCHIVE_NAME}.tar"
-          git submodule foreach --recursive \
-            'git archive --format=tar --prefix="'"${ARCHIVE_NAME}"'/${sm_path}/" HEAD | tar --concatenate --file="${GITHUB_WORKSPACE}/${ARCHIVE_NAME}.tar"'
-          gzip "${ARCHIVE_NAME}.tar"
+          RELEASE_ARCHIVE="${{ github.event.repository.name }}-${{ github.ref_name }}.tar.gz"
+          tar -czf "${RELEASE_ARCHIVE}" --transform "s,^\.,$(basename "${GITHUB_WORKSPACE}")," .
+          echo "RELEASE_ARCHIVE=${RELEASE_ARCHIVE}" >> "${GITHUB_ENV}"
       - name: Create draft release from tag
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          ARCHIVE_NAME="${{ github.event.repository.name }}-${{ github.ref_name }}"
           gh release create "${{ github.ref_name }}" --title "${{ github.ref_name }}" --draft --notes-from-tag \
-            "${ARCHIVE_NAME}.tar.gz#Source with submodules"
-
-  add-pie-binaries:
-    needs: [ create-draft-release ]
+            "${RELEASE_ARCHIVE}#Source with submodules"
+  AddPieBinaries:
+    needs: [ Prepare, DraftRelease ]
     runs-on: ${{ matrix.operating-system }}
     strategy:
       fail-fast: false
@@ -55,10 +95,18 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
+      - name: Download Prepared workspace
+        uses: actions/download-artifact@v8
         with:
-          submodules: recursive
+          name: ${{ needs.Prepare.outputs.artifact_name }}
+          path: ${{ runner.temp }}/source-archive
+      - name: Extract Prepared workspace
+        env:
+          ARCHIVE_NAME: ${{ needs.Prepare.outputs.archive_name }}
+        run: |
+          ARCHIVE_PATH="${RUNNER_TEMP}/source-archive/${ARCHIVE_NAME}"
+          tar -xzf "${ARCHIVE_PATH}" --strip-components=1 -C "${GITHUB_WORKSPACE}"
+          rm -f "${ARCHIVE_PATH}"
       - name: Setup PHP
         uses: shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f # v2.37.0
         with:
