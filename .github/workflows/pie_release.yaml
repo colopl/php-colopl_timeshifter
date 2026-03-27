@@ -66,8 +66,8 @@ jobs:
       - name: Create source archive with submodules
         run: |
           RELEASE_ARCHIVE="${{ github.event.repository.name }}-${{ github.ref_name }}.tar.gz"
-          tar -czf "${RELEASE_ARCHIVE}" --transform "s,^\.,$(basename "${GITHUB_WORKSPACE}")," .
-          echo "RELEASE_ARCHIVE=${RELEASE_ARCHIVE}" >> "${GITHUB_ENV}"
+          tar -czf "${RUNNER_TEMP}/${RELEASE_ARCHIVE}" --transform "s,^\.,$(basename "${GITHUB_WORKSPACE}")," .
+          echo "RELEASE_ARCHIVE=${RUNNER_TEMP}/${RELEASE_ARCHIVE}" >> "${GITHUB_ENV}"
       - name: Create draft release from tag
         env:
           GH_TOKEN: ${{ github.token }}
