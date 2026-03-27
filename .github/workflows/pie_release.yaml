@@ -1,0 +1,61 @@
+name: Build and release binaries for PIE
+
+on:
+  push:
+    tags:
+      - '*'
+
+permissions:
+  contents: read
+
+jobs:
+  create-draft-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-tags: 'true'
+          ref: ${{ github.ref }}
+      - name: Create draft release from tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${{ github.ref_name }}" --title "${{ github.ref_name }}" --draft --notes-from-tag
+
+  add-pie-binaries:
+    needs: [ create-draft-release ]
+    runs-on: ${{ matrix.operating-system }}
+    strategy:
+      fail-fast: false
+      matrix:
+        operating-system:
+          - ubuntu-latest
+          - macos-latest
+        php-versions:
+          - '8.1'
+          - '8.2'
+          - '8.3'
+          - '8.4'
+          - '8.5'
+        zts-mode:
+          - ts
+          - nts
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Setup PHP
+        uses: shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f # v2.37.0
+        with:
+          php-version: ${{ matrix.php-versions }}
+        env:
+          phpts: ${{ matrix.zts-mode }}
+      - name: Build and release
+        uses: php/pie-ext-binary-builder@5298761950f63c7e9565ed7004e922b346e4386c # 0.0.3
+        with:
+          release-tag: ${{ github.ref_name }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          configure-flags: '--enable-colopl_timeshifter'
+          build-path: 'ext'
