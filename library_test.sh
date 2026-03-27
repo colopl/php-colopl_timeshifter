@@ -7,9 +7,9 @@ cd "/project"
     make -j"$(nproc)"
     TEST_PHP_ARGS="--show-diff -q" make test
     make install
-    docker-php-ext-enable "colopl_timeshifter"
   cd -
   composer install
+  docker-php-ext-enable "colopl_timeshifter"
   composer exec -- phpunit "tests"
   composer exec -- phpstan
 cd -
