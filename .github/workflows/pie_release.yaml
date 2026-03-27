@@ -18,10 +18,21 @@ jobs:
         with:
           fetch-tags: 'true'
           ref: ${{ github.ref }}
+          submodules: recursive
+      - name: Create source archive with submodules
+        run: |
+          ARCHIVE_NAME="${{ github.event.repository.name }}-${{ github.ref_name }}"
+          git archive --format=tar --prefix="${ARCHIVE_NAME}/" HEAD > "${ARCHIVE_NAME}.tar"
+          git submodule foreach --recursive \
+            'git archive --format=tar --prefix="'"${ARCHIVE_NAME}"'/${sm_path}/" HEAD | tar --concatenate --file="${GITHUB_WORKSPACE}/${ARCHIVE_NAME}.tar"'
+          gzip "${ARCHIVE_NAME}.tar"
       - name: Create draft release from tag
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "${{ github.ref_name }}" --title "${{ github.ref_name }}" --draft --notes-from-tag
+        run: |
+          ARCHIVE_NAME="${{ github.event.repository.name }}-${{ github.ref_name }}"
+          gh release create "${{ github.ref_name }}" --title "${{ github.ref_name }}" --draft --notes-from-tag \
+            "${ARCHIVE_NAME}.tar.gz#Source with submodules"
 
   add-pie-binaries:
     needs: [ create-draft-release ]
@@ -46,6 +57,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          submodules: recursive
       - name: Setup PHP
         uses: shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f # v2.37.0
         with:
