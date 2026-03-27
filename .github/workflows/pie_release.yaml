@@ -1,0 +1,132 @@
+name: Build and release binaries for PIE
+
+on:
+  push:
+    tags:
+      - '*'
+
+permissions:
+  contents: read
+
+jobs:
+  Prepare:
+    runs-on: ubuntu-24.04
+    outputs:
+      artifact_name: ${{ steps.metadata.outputs.artifact_name }}
+      archive_name: ${{ steps.metadata.outputs.archive_name }}
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+          fetch-tags: true
+          ref: ${{ github.ref }}
+          submodules: recursive
+      - name: Record artifact metadata
+        id: metadata
+        run: |
+          ARTIFACT_NAME="pie-source-${GITHUB_RUN_ID}"
+          echo "artifact_name=${ARTIFACT_NAME}" >> "${GITHUB_OUTPUT}"
+          echo "archive_name=${ARTIFACT_NAME}.tar.gz" >> "${GITHUB_OUTPUT}"
+      - name: Create workspace archive
+        id: archive
+        env:
+          ARCHIVE_NAME: ${{ steps.metadata.outputs.archive_name }}
+        run: |
+          ARCHIVE_PATH="${RUNNER_TEMP}/${ARCHIVE_NAME}"
+          REPO_DIR="$(basename "${GITHUB_WORKSPACE}")"
+          tar -czf "${ARCHIVE_PATH}" -C "$(dirname "${GITHUB_WORKSPACE}")" "${REPO_DIR}"
+          echo "archive-path=${ARCHIVE_PATH}" >> "${GITHUB_OUTPUT}"
+      - name: Upload Prepared workspace
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.metadata.outputs.artifact_name }}
+          path: ${{ steps.archive.outputs.archive-path }}
+          retention-days: 1
+  DraftRelease:
+    needs: [ Prepare ]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Download Prepared workspace
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ needs.Prepare.outputs.artifact_name }}
+          path: ${{ runner.temp }}/source-archive
+      - name: Extract Prepared workspace
+        env:
+          ARCHIVE_NAME: ${{ needs.Prepare.outputs.archive_name }}
+        run: |
+          ARCHIVE_PATH="${RUNNER_TEMP}/source-archive/${ARCHIVE_NAME}"
+          tar -xzf "${ARCHIVE_PATH}" --strip-components=1 -C "${GITHUB_WORKSPACE}"
+          rm -f "${ARCHIVE_PATH}"
+      - name: Create source archive with submodules
+        run: |
+          RELEASE_ARCHIVE="php_colopl_timeshifter-${{ github.ref_name }}-src.tgz"
+          tar -czf "${RUNNER_TEMP}/${RELEASE_ARCHIVE}" --transform "s,^\.,$(basename "${GITHUB_WORKSPACE}")," .
+          echo "RELEASE_ARCHIVE=${RUNNER_TEMP}/${RELEASE_ARCHIVE}" >> "${GITHUB_ENV}"
+      - name: Create draft release from tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" --title "${{ github.ref_name }}" --draft --notes-from-tag \
+            "${RELEASE_ARCHIVE}#Source with submodules"
+  AddPieBinaries:
+    needs: [ Prepare, DraftRelease ]
+    runs-on: ${{ matrix.operating-system }}
+    strategy:
+      fail-fast: false
+      matrix:
+        operating-system:
+          - ubuntu-latest
+          - macos-latest
+        php-versions:
+          - '8.1'
+          - '8.2'
+          - '8.3'
+          - '8.4'
+          - '8.5'
+        zts-mode:
+          - ts
+          - nts
+    permissions:
+      contents: write
+    steps:
+      - name: Download Prepared workspace
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ needs.Prepare.outputs.artifact_name }}
+          path: ${{ runner.temp }}/source-archive
+      - name: Extract Prepared workspace
+        env:
+          ARCHIVE_NAME: ${{ needs.Prepare.outputs.archive_name }}
+        run: |
+          ARCHIVE_PATH="${RUNNER_TEMP}/source-archive/${ARCHIVE_NAME}"
+          tar -xzf "${ARCHIVE_PATH}" --strip-components=1 -C "${GITHUB_WORKSPACE}"
+          rm -f "${ARCHIVE_PATH}"
+      - name: Setup PHP
+        uses: shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f # v2.37.0
+        with:
+          php-version: ${{ matrix.php-versions }}
+        env:
+          phpts: ${{ matrix.zts-mode }}
+      - name: Build and release
+        uses: php/pie-ext-binary-builder@5298761950f63c7e9565ed7004e922b346e4386c # 0.0.3
+        with:
+          release-tag: ${{ github.ref_name }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          configure-flags: '--enable-colopl_timeshifter'
+          build-path: 'ext'
+  PublishRelease:
+    needs: [ AddPieBinaries ]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit "${{ github.ref_name }}" --draft=false --repo "${{ github.repository }}"
