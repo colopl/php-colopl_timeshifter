@@ -118,6 +118,8 @@ jobs:
         with:
           release-tag: ${{ github.ref_name }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          configure-flags: '--enable-colopl_timeshifter'
+          build-path: 'ext'
   PublishRelease:
     needs: [ AddPieBinaries ]
     runs-on: ubuntu-24.04
@@ -128,5 +130,3 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release edit "${{ github.ref_name }}" --draft=false --repo "${{ github.repository }}"
-          configure-flags: '--enable-colopl_timeshifter'
-          build-path: 'ext'
