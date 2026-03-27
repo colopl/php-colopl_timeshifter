@@ -65,9 +65,7 @@ jobs:
           rm -f "${ARCHIVE_PATH}"
       - name: Create source archive with submodules
         run: |
-          VERSION="${{ github.ref_name }}"
-          VERSION="${VERSION#v}"
-          RELEASE_ARCHIVE="php_colopl_timeshifter-${VERSION}-src.tgz"
+          RELEASE_ARCHIVE="php_colopl_timeshifter-${{ github.ref_name }}-src.tgz"
           tar -czf "${RUNNER_TEMP}/${RELEASE_ARCHIVE}" --transform "s,^\.,$(basename "${GITHUB_WORKSPACE}")," .
           echo "RELEASE_ARCHIVE=${RUNNER_TEMP}/${RELEASE_ARCHIVE}" >> "${GITHUB_ENV}"
       - name: Create draft release from tag
