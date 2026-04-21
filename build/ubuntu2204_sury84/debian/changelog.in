@@ -2,4 +2,4 @@ php-colopl-timeshifter (@VERSION@) jammy; urgency=medium
 
   * Build php8.4-colopl-timeshifter for Ubuntu 22.04 with the Ondrej Sury PHP 8.4 repository.
 
- -- Go Kudo <g-kudo@colopl.co.jp>  Mon, 21 Apr 2026 00:00:00 +0000
+ -- Go Kudo <g-kudo@colopl.co.jp>  Tue, 21 Apr 2026 00:00:00 +0000
