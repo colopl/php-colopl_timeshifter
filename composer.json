@@ -10,7 +10,7 @@
         "phpunit/phpunit": "^10 || ^11 || ^12.4.5 || ^13.0.0",
         "phpstan/phpstan-phpunit": "^2.0.8"
     },
-    "replace": {
+    "provide": {
         "ext-colopl_timeshifter": "*"
     },
     "php-ext": {
