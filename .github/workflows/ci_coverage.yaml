@@ -45,7 +45,7 @@ jobs:
       - name: Initialize extension
         if: steps.check.outputs.needs-init == 'true'
         run: |
-          docker compose run -v "$(pwd)/ext:/ext" --rm shell pskel init skeleton
+          docker compose run -v "$(pwd):/project" --rm shell pskel init skeleton
       - name: Upload initialized extension
         if: steps.check.outputs.needs-init == 'true'
         uses: actions/upload-artifact@v7
@@ -91,7 +91,7 @@ jobs:
             --build-arg SKIP_VALGRIND=1 \
             shell
           touch "lcov.info"
-          docker compose run -v "$(pwd)/lcov.info:/ext/lcov.info" --rm shell pskel coverage
+          docker compose run -v "$(pwd)/lcov.info:/project/ext/lcov.info" --rm shell pskel coverage
           mv "lcov.info" "${{ matrix.platform }}_${{ matrix.versions }}_${{ matrix.ts }}_lcov.info"
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v7
@@ -139,6 +139,9 @@ jobs:
           path: ext/
       - name: Generate integrated HTML coverage reports
         run: |
+          if ! test -e "/project"; then
+            sudo ln -s "${GITHUB_WORKSPACE}" /project
+          fi
           if ! test -d "/ext"; then
             sudo ln -s "${GITHUB_WORKSPACE}/ext" /ext
           fi

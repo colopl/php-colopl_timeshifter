@@ -2,6 +2,7 @@
 /ext/*~
 /vendor
 /.idea
+/artifacts
 *.DS_Store
 lcov.info
 composer.lock

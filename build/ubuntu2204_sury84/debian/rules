@@ -1,0 +1,33 @@
+#!/usr/bin/make -f
+
+PHPIZE = phpize8.4
+PHP_CONFIG = php-config8.4
+PHP_BIN = php8.4
+PHP_VERSION = 8.4
+BINARY_PACKAGE = php8.4-colopl-timeshifter
+
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+
+%:
+	dh $@
+
+override_dh_auto_configure:
+	cd ext && $(PHPIZE)
+	cd ext && ./configure --with-php-config="$$(command -v $(PHP_CONFIG))"
+
+override_dh_auto_build:
+	$(MAKE) -C ext -j$(shell nproc)
+
+override_dh_auto_test:
+	cd ext && $(PHP_BIN) -d extension="$$(pwd)/modules/colopl_timeshifter.so" --ri colopl_timeshifter >/dev/null
+
+override_dh_auto_install:
+	extdir="$$( $(PHP_CONFIG) --extension-dir )"; \
+	pkgdir="$(CURDIR)/debian/$(BINARY_PACKAGE)"; \
+	install -d "$$pkgdir$$extdir" "$$pkgdir/etc/php/$(PHP_VERSION)/mods-available"; \
+	install -m 0644 ext/modules/colopl_timeshifter.so "$$pkgdir$$extdir/colopl_timeshifter.so"; \
+	printf '%s\n' '; priority=20' 'extension=colopl_timeshifter' > "$$pkgdir/etc/php/$(PHP_VERSION)/mods-available/colopl_timeshifter.ini"
+
+override_dh_auto_clean:
+	if [ -f ext/Makefile ]; then $(MAKE) -C ext clean || true; fi
+	rm -rf ext/modules ext/autom4te.cache

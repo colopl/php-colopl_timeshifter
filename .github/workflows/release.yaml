@@ -1,4 +1,4 @@
-name: Build and release binaries for PIE
+name: Build and release artifacts
 
 on:
   push:
@@ -120,8 +120,46 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           configure-flags: '--enable-colopl_timeshifter'
           build-path: 'ext'
+  AddDebPackages:
+    needs: [ Prepare, DraftRelease ]
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - dockerfile: build/ubuntu2204/Dockerfile
+            image: colopl-timeshifter-u2204-php81
+          - dockerfile: build/ubuntu2204_sury84/Dockerfile
+            image: colopl-timeshifter-u2204-php84
+    permissions:
+      contents: write
+    steps:
+      - name: Download Prepared workspace
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ needs.Prepare.outputs.artifact_name }}
+          path: ${{ runner.temp }}/source-archive
+      - name: Extract Prepared workspace
+        env:
+          ARCHIVE_NAME: ${{ needs.Prepare.outputs.archive_name }}
+        run: |
+          ARCHIVE_PATH="${RUNNER_TEMP}/source-archive/${ARCHIVE_NAME}"
+          tar -xzf "${ARCHIVE_PATH}" --strip-components=1 -C "${GITHUB_WORKSPACE}"
+          rm -f "${ARCHIVE_PATH}"
+      - name: Build Debian packages
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          ARTIFACTS_DIR="${RUNNER_TEMP}/artifacts"
+          mkdir -p "${ARTIFACTS_DIR}"
+          docker build -f "${{ matrix.dockerfile }}" -t "${{ matrix.image }}" .
+          docker run --rm -e VERSION="${VERSION}" -v "${ARTIFACTS_DIR}:/tmp/artifacts" "${{ matrix.image }}"
+      - name: Upload Debian packages to draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "${{ github.ref_name }}" "${RUNNER_TEMP}/artifacts/"* --clobber
   PublishRelease:
-    needs: [ AddPieBinaries ]
+    needs: [ AddPieBinaries, AddDebPackages ]
     runs-on: ubuntu-24.04
     permissions:
       contents: write

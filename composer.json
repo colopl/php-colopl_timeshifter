@@ -10,13 +10,17 @@
         "phpunit/phpunit": "^10 || ^11 || ^12.4.5 || ^13.0.0",
         "phpstan/phpstan-phpunit": "^2.0.8"
     },
-    "replace": {
+    "provide": {
         "ext-colopl_timeshifter": "*"
     },
     "php-ext": {
         "extension-name": "colopl_timeshifter",
         "build-path": "ext",
-        "download-url-method": ["pre-packaged-source"],
+        "download-url-method": [
+            "pre-packaged-binary",
+            "pre-packaged-source",
+            "composer-default"
+        ],
         "configure-options": [
             {
                 "name": "enable-colopl_timeshifter",
@@ -24,7 +28,7 @@
             }
         ]
     },
-    "license": "PHP-3.01",
+    "license": "BSD-3-Clause",
     "autoload": {
         "psr-4": {
             "Colopl\\ColoplTimeShifter\\": "src/"

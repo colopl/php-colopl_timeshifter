@@ -1,5 +1,5 @@
 {
-  "name": "colopl_timeshifter Pskel (for Codespaces)",
+  "name": "colopl_timeshifter Pskel",
   "customizations": {
     "vscode": {
       "extensions": [
@@ -13,5 +13,8 @@
     }
   },
   "dockerComposeFile": "./../compose.yaml",
-  "service": "shell"
+  "service": "shell",
+  "workspaceFolder": "/workspace",
+  "initializeCommand": "git submodule update --init --recursive",
+  "postCreateCommand": "ln -sf \"$(pwd)/pskel.sh\" /usr/local/bin/pskel"
 }
