@@ -18,13 +18,20 @@
 
 # include "shared_memory.h"
 
-void get_shift_interval(timelib_rel_time *time);
+typedef struct _colopl_timeshifter_interval_t {
+	bool initialized;
+	int civil_or_wall;
+	timelib_rel_time diff;
+} colopl_timeshifter_interval_t;
+
+bool get_shift_interval(colopl_timeshifter_interval_t *interval);
 bool get_is_hooked();
+bool validate_shift_interval(zval *interval);
 
 extern zend_module_entry colopl_timeshifter_module_entry;
 # define phpext_colopl_timeshifter_ptr &colopl_timeshifter_module_entry
 
-# define PHP_COLOPL_TIMESHIFTER_VERSION "1.3.0"
+# define PHP_COLOPL_TIMESHIFTER_VERSION "2.0.0"
 
 ZEND_BEGIN_MODULE_GLOBALS(colopl_timeshifter)
 	struct pdo_dbh_methods hooked_mysql_driver_methods;
@@ -41,19 +48,25 @@ ZEND_BEGIN_MODULE_GLOBALS(colopl_timeshifter)
 	zif_handler orig_date_create_immutable;
 	zif_handler orig_date_create_from_format;
 	zif_handler orig_date_create_immutable_from_format;
+	zif_handler orig_date_parse_from_format;
 	zif_handler orig_date;
 	zif_handler orig_gmdate;
 	zif_handler orig_idate;
 	zif_handler orig_getdate;
 	zif_handler orig_localtime;
 	zif_handler orig_strtotime;
+	zif_handler orig_strftime;
+	zif_handler orig_gmstrftime;
+	zif_handler orig_uniqid;
+	zif_handler orig_easter_date;
+	zif_handler orig_easter_days;
 # if HAVE_GETTIMEOFDAY
 	zif_handler orig_microtime;
 	zif_handler orig_gettimeofday;
 # endif
 	zend_long orig_request_time;
 	double orig_request_time_float;
-	zend_long usleep_sec;
+	bool in_internal_call;
 	bool is_restore_per_request;
 	bool is_hook_pdo_mysql;
 	bool is_hook_request_time;

@@ -122,15 +122,41 @@ jobs:
           build-path: 'ext'
   AddDebPackages:
     needs: [ Prepare, DraftRelease ]
-    runs-on: ubuntu-24.04
+    runs-on: ${{ matrix.runs-on }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - dockerfile: build/ubuntu2204/Dockerfile
+          - runs-on: ubuntu-24.04
+            platform: linux/amd64
+            arch: amd64
+            dockerfile: build/ubuntu2204/Dockerfile
             image: colopl-timeshifter-u2204-php81
-          - dockerfile: build/ubuntu2204_sury84/Dockerfile
-            image: colopl-timeshifter-u2204-php84
+          - runs-on: ubuntu-24.04-arm
+            platform: linux/arm64
+            arch: arm64
+            dockerfile: build/ubuntu2204/Dockerfile
+            image: colopl-timeshifter-u2204-php81
+          - runs-on: ubuntu-24.04
+            platform: linux/amd64
+            arch: amd64
+            dockerfile: build/ubuntu2204_sury84/Dockerfile
+            image: colopl-timeshifter-u2204-sury84-php84
+          - runs-on: ubuntu-24.04-arm
+            platform: linux/arm64
+            arch: arm64
+            dockerfile: build/ubuntu2204_sury84/Dockerfile
+            image: colopl-timeshifter-u2204-sury84-php84
+          - runs-on: ubuntu-24.04
+            platform: linux/amd64
+            arch: amd64
+            dockerfile: build/ubuntu2604/Dockerfile
+            image: colopl-timeshifter-u2604-php85
+          - runs-on: ubuntu-24.04-arm
+            platform: linux/arm64
+            arch: arm64
+            dockerfile: build/ubuntu2604/Dockerfile
+            image: colopl-timeshifter-u2604-php85
     permissions:
       contents: write
     steps:
@@ -151,8 +177,17 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"
           ARTIFACTS_DIR="${RUNNER_TEMP}/artifacts"
           mkdir -p "${ARTIFACTS_DIR}"
-          docker build -f "${{ matrix.dockerfile }}" -t "${{ matrix.image }}" .
-          docker run --rm -e VERSION="${VERSION}" -v "${ARTIFACTS_DIR}:/tmp/artifacts" "${{ matrix.image }}"
+          docker build \
+            --pull \
+            --build-arg PLATFORM="${{ matrix.platform }}" \
+            -f "${{ matrix.dockerfile }}" \
+            -t "${{ matrix.image }}:${{ matrix.arch }}" \
+            .
+          docker run --rm \
+            --platform "${{ matrix.platform }}" \
+            -e VERSION="${VERSION}" \
+            -v "${ARTIFACTS_DIR}:/tmp/artifacts" \
+            "${{ matrix.image }}:${{ matrix.arch }}"
       - name: Upload Debian packages to draft release
         env:
           GH_TOKEN: ${{ github.token }}

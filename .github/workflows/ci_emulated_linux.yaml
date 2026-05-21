@@ -18,7 +18,7 @@ jobs:
       matrix:
         platform: ['linux/s390x']
         version: ['8.1', '8.2', '8.3', '8.4', '8.5']
-        type: ['cli', 'zts']
+        type: ['fpm', 'zts']
         distro: ['trixie', 'alpine']
     steps:
       - name: Download prepared workspace
@@ -95,4 +95,4 @@ jobs:
           if test "${{ steps.check-image.outputs.exists }}" = "true"; then
             export SHELL_IMAGE="${{ steps.image-tag.outputs.tag }}"
           fi
-          docker compose run --rm shell library_test
+          docker compose run --rm shell pskel test

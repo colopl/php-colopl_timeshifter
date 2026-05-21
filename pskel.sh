@@ -353,14 +353,19 @@ build_php_if_not_exists() {
     fi
   fi
 
-  if ! command -v "${PREFIX}-php" >/dev/null 2>&1; then
+  if ! command -v "${PREFIX}-php" >/dev/null 2>&1 || ! test -x "/usr/local/sbin/${PREFIX}-php-fpm"; then
     CC="${CC}" \
     CXX="${CXX}" \
     CFLAGS="-DZEND_TRACK_ARENA_ALLOC" \
     CPPFLAGS="${CFLAGS}" \
     LDFLAGS="${LDFLAGS}" \
-    CONFIGURE_OPTS="${CONFIGURE_OPTS} --enable-debug $(php -r "echo (bool)PHP_ZTS ? '--enable-zts' : '';") --enable-option-checking=fatal --disable-phpdbg --disable-cgi --disable-fpm --enable-cli --without-pcre-jit --disable-opcache-jit --disable-zend-max-execution-timers" \
+    CONFIGURE_OPTS="${CONFIGURE_OPTS} --enable-debug $(php -r "echo (bool)PHP_ZTS ? '--enable-zts' : '';") --enable-option-checking=fatal --disable-phpdbg --disable-cgi --without-pcre-jit --disable-opcache-jit --disable-zend-max-execution-timers" \
     cmd_build "${PREFIX}"
+
+    if ! test -x "/usr/local/sbin/${PREFIX}-php-fpm"; then
+      echo "Error: PHP FPM binary was not built: ${PREFIX}-php-fpm" >&2
+      exit 1
+    fi
 
     if test -n "${GITHUB_ACTIONS}" && test -d "${PHP_CACHE_DIR}"; then
       cache_php_build "${PREFIX}" "${1}" "${CC}"
@@ -378,17 +383,24 @@ check_and_restore_cached_php() {
   CACHE_DIR="${PHP_CACHE_DIR}/${CACHE_KEY}"
 
   if test -f "${CACHE_DIR}/.build_complete"; then
+    if ! test -f "${CACHE_DIR}/usr/local/sbin/${PREFIX}-php-fpm"; then
+      echo "[Pskel > Cache] Cached PHP build is missing FPM binary, rebuilding: ${PREFIX}-php-fpm" >&2
+      return 1
+    fi
+
     for BIN in php phpize php-config; do
       if test -f "${CACHE_DIR}/usr/local/bin/${PREFIX}-${BIN}"; then
         ln -sf "${CACHE_DIR}/usr/local/bin/${PREFIX}-${BIN}" "/usr/local/bin/${PREFIX}-${BIN}"
       fi
     done
 
+    ln -sf "${CACHE_DIR}/usr/local/sbin/${PREFIX}-php-fpm" "/usr/local/sbin/${PREFIX}-php-fpm"
+
     if test -d "${CACHE_DIR}/usr/local/include/${PREFIX}-php"; then
       ln -sf "${CACHE_DIR}/usr/local/include/${PREFIX}-php" "/usr/local/include/${PREFIX}-php"
     fi
 
-    echo "[Pskel > Cache] Restored PHP header and binary: ${PREFIX}-php" >&2
+    echo "[Pskel > Cache] Restored PHP header and binaries: ${PREFIX}-php, ${PREFIX}-php-fpm" >&2
 
     return 0
   fi
@@ -424,13 +436,17 @@ cache_php_build() {
   CACHE_KEY="$(generate_cache_key "${BUILD_TYPE}" "${COMPILER}")"
   CACHE_DIR="${PHP_CACHE_DIR}/${CACHE_KEY}"
 
-  mkdir -p "${CACHE_DIR}/usr/local/bin"
+  mkdir -p "${CACHE_DIR}/usr/local/bin" "${CACHE_DIR}/usr/local/sbin"
 
   for BIN in php phpize php-config; do
     if test -f "/usr/local/bin/${PREFIX}-${BIN}"; then
       cp -a "/usr/local/bin/${PREFIX}-${BIN}" "${CACHE_DIR}/usr/local/bin/"
     fi
-    done
+  done
+
+  if test -f "/usr/local/sbin/${PREFIX}-php-fpm"; then
+    cp -a "/usr/local/sbin/${PREFIX}-php-fpm" "${CACHE_DIR}/usr/local/sbin/"
+  fi
 
   if test -d "/usr/local/include/${PREFIX}-php"; then
     mkdir -p "${CACHE_DIR}/usr/local/include"
@@ -438,7 +454,7 @@ cache_php_build() {
   fi
 
   touch "${CACHE_DIR}/.build_complete"
-  echo "[Pskel > Cache] Cached PHP header and binary: ${PREFIX}-php" >&2
+  echo "[Pskel > Cache] Cached PHP header and binaries: ${PREFIX}-php, ${PREFIX}-php-fpm" >&2
 }
 
 cmd_build() {
@@ -456,6 +472,8 @@ EOF
       CONFIGURE_OPTS="--program-prefix=${1}- --includedir=/usr/local/include/${1}-php ${CONFIGURE_OPTS}"
       ;;
   esac
+
+  CONFIGURE_OPTS="${CONFIGURE_OPTS} --enable-calendar --enable-fpm --enable-cli"
 
   cd "/usr/src/php"
     ./buildconf --force
@@ -499,7 +517,7 @@ EOF
       cnt = ""
       rest = $0
       sub(/^FNA:/, "", rest)
-      split(rest, b, /,/) 
+      split(rest, b, /,/)
       idx = b[1]
       cnt = b[2]
       sub(/^[^,]*,[^,]*,/, "", rest)

@@ -17,6 +17,7 @@
 #include "php.h"
 #include "ext/date/php_date.h"
 #include "ext/standard/info.h"
+
 #include "php_colopl_timeshifter.h"
 #include "colopl_timeshifter_arginfo.h"
 
@@ -26,7 +27,7 @@
 /* True global */
 typedef struct {
 	bool is_hooked;
-	timelib_rel_time shift_interval;
+	colopl_timeshifter_interval_t interval;
 } timeshifter_global_t;
 sm_t timeshifter_global;
 
@@ -36,17 +37,70 @@ ZEND_DECLARE_MODULE_GLOBALS(colopl_timeshifter);
 PHP_INI_BEGIN()
 	STD_PHP_INI_ENTRY("colopl_timeshifter.is_hook_pdo_mysql", "1", PHP_INI_SYSTEM, OnUpdateBool, is_hook_pdo_mysql, zend_colopl_timeshifter_globals, colopl_timeshifter_globals)
 	STD_PHP_INI_ENTRY("colopl_timeshifter.is_hook_request_time", "1", PHP_INI_SYSTEM, OnUpdateBool, is_hook_request_time, zend_colopl_timeshifter_globals, colopl_timeshifter_globals)
-	STD_PHP_INI_ENTRY("colopl_timeshifter.usleep_sec", "1", PHP_INI_ALL, OnUpdateLong, usleep_sec, zend_colopl_timeshifter_globals, colopl_timeshifter_globals)
 	STD_PHP_INI_ENTRY("colopl_timeshifter.is_restore_per_request", "0", PHP_INI_ALL, OnUpdateBool, is_restore_per_request, zend_colopl_timeshifter_globals, colopl_timeshifter_globals)
 PHP_INI_END()
 
-void get_shift_interval(timelib_rel_time *time) {
+static bool is_supported_interval_object(zval *interval)
+{
+	if (Z_OBJCE_P(interval) != php_date_get_interval_ce()) {
+		return false;
+	}
+
+	if (Z_OBJ_P(interval)->properties && zend_hash_num_elements(Z_OBJ_P(interval)->properties) > 0) {
+		return false;
+	}
+
+	return true;
+}
+
+static bool is_supported_interval_value(php_interval_obj *interval_obj)
+{
+	timelib_rel_time *diff = interval_obj->diff;
+
+	if (!interval_obj->initialized || !diff) {
+		return false;
+	}
+
+	return !diff->have_weekday_relative &&
+		!diff->have_special_relative &&
+		diff->first_last_day_of == 0 &&
+		diff->special.type == 0;
+}
+
+static bool copy_interval_from_php(colopl_timeshifter_interval_t *dest, zval *src)
+{
+	php_interval_obj *interval_obj;
+
+	memset(dest, 0, sizeof(colopl_timeshifter_interval_t));
+
+	if (!is_supported_interval_object(src)) {
+		return false;
+	}
+
+	interval_obj = Z_PHPINTERVAL_P(src);
+	if (!is_supported_interval_value(interval_obj)) {
+		return false;
+	}
+
+	dest->initialized = true;
+	dest->civil_or_wall = interval_obj->civil_or_wall;
+	memcpy(&dest->diff, interval_obj->diff, sizeof(timelib_rel_time));
+
+	return true;
+}
+
+bool get_shift_interval(colopl_timeshifter_interval_t *interval) {
 	timeshifter_global_t tg;
 
 	sm_read(&timeshifter_global, &tg);
 	if (tg.is_hooked) {
-		memcpy(time, &tg.shift_interval, sizeof(timelib_rel_time));
+		memcpy(interval, &tg.interval, sizeof(colopl_timeshifter_interval_t));
+		return true;
 	}
+
+	memset(interval, 0, sizeof(colopl_timeshifter_interval_t));
+
+	return false;
 }
 
 void set_is_hooked(bool flag) {
@@ -68,16 +122,30 @@ bool get_is_hooked() {
 
 ZEND_FUNCTION(Colopl_ColoplTimeShifter_register_hook)
 {
-	zval *intern;
 	timeshifter_global_t tg;
+	zval *intern;
 
 	ZEND_PARSE_PARAMETERS_START(1, 1)
 		Z_PARAM_OBJECT_OF_CLASS(intern, php_date_get_interval_ce())
 	ZEND_PARSE_PARAMETERS_END();
 
-	/* Copy interval. */
+	if (!is_supported_interval_object(intern)) {
+		RETURN_FALSE;
+	}
+
+	if (!is_supported_interval_value(Z_PHPINTERVAL_P(intern))) {
+		RETURN_FALSE;
+	}
+
+	if (!validate_shift_interval(intern)) {
+		RETURN_FALSE;
+	}
+
 	sm_read(&timeshifter_global, &tg);
-	memcpy(&tg.shift_interval, Z_PHPINTERVAL_P(intern)->diff, sizeof(timelib_rel_time));
+	if (!copy_interval_from_php(&tg.interval, intern)) {
+		RETURN_FALSE;
+	}
+
 	tg.is_hooked = true;
 	if (!sm_write(&timeshifter_global, &tg)) {
 		RETURN_FALSE;
@@ -140,6 +208,7 @@ PHP_RINIT_FUNCTION(colopl_timeshifter)
 
 	COLOPL_TS_G(orig_request_time) = 0;
 	COLOPL_TS_G(orig_request_time_float) = 0.0;
+	COLOPL_TS_G(in_internal_call) = false;
 
 	return SUCCESS;
 }
@@ -175,6 +244,7 @@ PHP_GINIT_FUNCTION(colopl_timeshifter)
 	sm_init(&timeshifter_global, sizeof(timeshifter_global_t));
 	sm_read(&timeshifter_global, &tg);
 	tg.is_hooked = false;
+	memset(&tg.interval, 0, sizeof(tg.interval));
 	sm_write(&timeshifter_global, &tg);
 }
 

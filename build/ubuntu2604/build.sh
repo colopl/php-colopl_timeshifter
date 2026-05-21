@@ -3,9 +3,9 @@
 : "${VERSION:?VERSION is required}"
 
 SOURCE_DIR="/tmp/src"
-PACKAGING_DIR="/tmp/build/ubuntu2204/debian"
+PACKAGING_DIR="/tmp/build/ubuntu2604/debian"
 ARTIFACTS_DIR="/tmp/artifacts"
-UBUNTU_VERSION="22.04"
+UBUNTU_VERSION="26.04"
 PHP_VARIANT="default"
 
 rm -rf "${SOURCE_DIR}/debian"

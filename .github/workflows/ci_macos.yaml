@@ -88,14 +88,38 @@ jobs:
         uses: shivammathur/setup-php@7c071dfe9dc99bdf297fa79cb49ea005b9fcadbc # 2.37.1
         with:
           php-version: ${{ matrix.version }}
-          extensions: none
+          extensions: pdo, pdo_sqlite, pdo_mysql
         env:
           phpts: ${{ matrix.ts }}
+      - name: Setup MySQL 8.0
+        uses: shogo82148/actions-setup-mysql@9c42ca180d5f1dd4dceb54c23c5eda0384f4d265 # v1.50.0
+        with:
+          mysql-version: '8.0'
+          user: testing
+          password: testing
+          my-cnf: |
+            default-authentication-plugin=mysql_native_password
+      - name: Setup MySQL 8.0 compatibility endpoint for TiDB PDO tests
+        uses: shogo82148/actions-setup-mysql@9c42ca180d5f1dd4dceb54c23c5eda0384f4d265 # v1.50.0
+        with:
+          mysql-version: '8.0'
+          my-cnf: |
+            port=4000
+            default-authentication-plugin=mysql_native_password
+      - name: Configure MySQL test database
+        run: |
+          {
+            echo "127.0.0.1 mysql"
+            echo "127.0.0.1 tidb"
+          } | sudo tee -a /etc/hosts
+          mysql --protocol=tcp --ssl-mode=DISABLED --host=127.0.0.1 --port=3306 --user=root --execute="CREATE DATABASE IF NOT EXISTS testing;"
+          mysql --protocol=tcp --ssl-mode=DISABLED --host=mysql --port=3306 --user=testing --password=testing testing --execute="SELECT VERSION();"
+          mysql --protocol=tcp --ssl-mode=DISABLED --host=tidb --port=4000 --user=root mysql --execute="SELECT VERSION();"
       - name: Test extension
         run: |
           cd "ext"
           phpize
           ./configure --with-php-config="$(which "php-config")"
           make -j"$(sysctl -n hw.ncpu)"
-          make test
+          NO_INTERACTION=1 REPORT_EXIT_STATUS=1 make test
           cd -

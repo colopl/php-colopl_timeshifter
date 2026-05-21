@@ -4,6 +4,9 @@ Check GitHub PR - #12 (wrong strtotime)
 colopl_timeshifter
 --SKIPIF--
 <?php
+if (PHP_OS_FAMILY === 'Windows') die('skip requires Unix date command');
+if (!function_exists('posix_getuid')) die('skip posix extension required');
+if (!function_exists('shell_exec')) die('skip shell_exec required');
 if (posix_getuid() !== 0) die('skip require root');
 if (!is_string(($result = shell_exec('date')))) die ('skip cannot set current date');
 ?>

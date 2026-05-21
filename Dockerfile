@@ -1,6 +1,6 @@
 ARG PLATFORM=${BUILDPLATFORM:-linux/amd64}
 ARG IMAGE=php
-ARG TAG=8.5-cli-trixie
+ARG TAG=8.5-fpm-trixie
 ARG SKIP_VALGRIND=0
 ARG ENABLE_CLANG=1
 
@@ -99,6 +99,13 @@ if test -n "${GITHUB_ACTIONS}" && test -d "${PHP_CACHE_DIR}"; then
           echo "[Pskel > Cache] Restored: ${BIN_NAME}" >&2
         fi
       done
+      for BIN in "${CACHE_ENTRY}/usr/local/sbin/"*; do
+        if test -f "${BIN}"; then
+          BIN_NAME="$(basename "${BIN}")"
+          ln -sf "${BIN}" "/usr/local/sbin/${BIN_NAME}"
+          echo "[Pskel > Cache] Restored: ${BIN_NAME}" >&2
+        fi
+      done
       if test -d "${CACHE_ENTRY}/usr/local/include"; then
         cp -an "${CACHE_ENTRY}/usr/local/include/"* "/usr/local/include/" 2>/dev/null || true
       fi
@@ -117,10 +124,7 @@ CMD ["bash"]
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 COPY ./ /project
-COPY ./library_test.sh /usr/local/bin/library_test
 
 ENV COMPOSER_ROOT_VERSION="9.9.9"
-
-RUN chmod +x "/usr/local/bin/library_test"
 
 WORKDIR "/project"

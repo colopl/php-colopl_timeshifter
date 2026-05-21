@@ -12,8 +12,6 @@ $before_static = \DateTime::createFromFormat('Y-m-d H:i:s.u', '2024-02-27 09:52:
 
 \Colopl\ColoplTimeShifter\register_hook($shift_interval);
 
-usleep(5);
-
 $after_now = \DateTime::createFromFormat('m', '5');
 $after_static = \DateTime::createFromFormat('Y-m-d H:i:s.u', '2024-02-27 09:52:55.12345');
 
