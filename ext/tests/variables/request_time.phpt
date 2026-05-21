@@ -16,7 +16,7 @@ $after = new \DateTime('@' . $after_request_time);
 
 $interval = $after->diff($before);
 
-if ($before == $after || $interval->y !== 1 || $interval->invert !== 0) {
+if ($before == $after || $interval->days < 364 || $interval->days > 366 || $interval->invert !== 0) {
     die('failed');
 }
 

@@ -7,15 +7,34 @@ colopl_timeshifter
 
 $shift_interval = new \DateInterval('PT30M');
 
-$before = \gmmktime(12);
+$explicit = \gmmktime(12, 34, 56, 1, 2, 2024);
+$realBeforeHook = \time();
+
+$expected = [];
+for ($elapsed = 0; $elapsed <= 120; $elapsed++) {
+    $shifted = (new \DateTimeImmutable('@' . ($realBeforeHook + $elapsed)))
+        ->setTimezone(new \DateTimeZone('UTC'))
+        ->sub($shift_interval);
+    $expected[] = \gmmktime(
+        12,
+        (int) $shifted->format('i'),
+        (int) $shifted->format('s'),
+        (int) $shifted->format('n'),
+        (int) $shifted->format('j'),
+        (int) $shifted->format('Y'),
+    );
+}
 
 \Colopl\ColoplTimeShifter\register_hook($shift_interval);
 
 $after = \gmmktime(12);
+$explicitAfter = \gmmktime(12, 34, 56, 1, 2, 2024);
 
-$interval = (new \DateTime("@{$after}"))->diff(new \DateTime("@{$before}"));
+if ($explicitAfter !== $explicit) {
+    die('failed explicit');
+}
 
-if ($interval->i >= 29 && 32 > $interval->i && $interval->invert === 0) {
+if (\in_array($after, $expected, true)) {
     die('success');
 }
 

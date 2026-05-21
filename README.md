@@ -7,7 +7,7 @@ This extension changes the current time in PHP to a specified modified value.
 
 At present, this extension is effective for the following functions:
 
-- Any built-in PHP processing that handles the current time (`ext-date`)
+- Any built-in PHP processing that handles the current time (`ext-date`, `ext-calendar`)
 - `NOW()` and many statements in MySQL or compatible DBMS via PDO
 - Server environment variables for request time (e.g. `$_SERVER['REQUEST_TIME']`)
 
@@ -33,10 +33,10 @@ $ php -m | grep "colopl_timeshifter"
 colopl_timeshifter
 ```
 
-## Build Ubuntu 22.04 packages
+## Build Ubuntu packages
 
-Ubuntu 22.04 packages are built with standard Debian packaging via `dpkg-buildpackage`, not `checkinstall`.
-The packaging definitions live under `build/ubuntu2204/debian` and `build/ubuntu2204_sury84/debian`.
+Ubuntu packages are built with standard Debian packaging via `dpkg-buildpackage`, not `checkinstall`.
+The packaging definitions live alongside each build target under `build/*/debian`.
 
 Build packages for the official Ubuntu 22.04 PHP 8.1 stack:
 
@@ -46,27 +46,91 @@ $ mkdir -p "artifacts"
 $ docker run --rm -e VERSION="x.y.z" -v "$(pwd)/artifacts:/tmp/artifacts" "colopl-timeshifter-u2204-php81"
 ```
 
-This target produces `php-colopl-timeshifter` and `php8.1-colopl-timeshifter` together with the corresponding `.changes` and `.buildinfo` files.
+This target produces `php8.1-colopl-timeshifter_x.y.z_<arch>_ubuntu22.04_default.deb`.
 
 Build packages for Ubuntu 22.04 with the Ondrej Sury PHP 8.4 repository:
 
 ```bash
-$ docker build -f "build/ubuntu2204_sury84/Dockerfile" -t "colopl-timeshifter-u2204-php84" .
+$ docker build -f "build/ubuntu2204_sury84/Dockerfile" -t "colopl-timeshifter-u2204-sury84-php84" .
 $ mkdir -p "artifacts"
-$ docker run --rm -e VERSION="x.y.z" -v "$(pwd)/artifacts:/tmp/artifacts" "colopl-timeshifter-u2204-php84"
+$ docker run --rm -e VERSION="x.y.z" -v "$(pwd)/artifacts:/tmp/artifacts" "colopl-timeshifter-u2204-sury84-php84"
 ```
 
-This target produces `php8.4-colopl-timeshifter` together with the corresponding `.changes` and `.buildinfo` files.
+This target produces `php8.4-colopl-timeshifter_x.y.z_<arch>_ubuntu22.04_sury.deb`.
 
-## PHP Library
-
-The Composer package is the recommended interface from application code.
+Build packages for the official Ubuntu 26.04 PHP 8.5 stack:
 
 ```bash
-$ composer require --dev "colopl/colopl_timeshifter"
+$ docker build -f "build/ubuntu2604/Dockerfile" -t "colopl-timeshifter-u2604-php85" .
+$ mkdir -p "artifacts"
+$ docker run --rm -e VERSION="x.y.z" -v "$(pwd)/artifacts:/tmp/artifacts" "colopl-timeshifter-u2604-php85"
 ```
 
-Use `Colopl\ColoplTimeShifter\Manager` as a support class.
+This target produces `php8.5-colopl-timeshifter_x.y.z_<arch>_ubuntu26.04_default.deb`.
+
+Generated `.ddeb`, `.changes`, and `.buildinfo` artifacts use the same Ubuntu version and PHP variant suffix when present.
+
+## Migration Guide
+
+### From Composer Package to Packagist PHP Extension Installer
+
+As of version 2.0, this extension is distributed via the Packagist PHP Extension installer (PIE) and is no longer available as a Composer library package. The PHP library interface (`Colopl\ColoplTimeShifter\Manager` class) has been discontinued.
+
+#### For users previously using `Manager` class
+
+**Before (version < 2.0):**
+```php
+<?php
+require 'vendor/autoload.php';
+
+use Colopl\ColoplTimeShifter\Manager;
+
+// Shift the current time to 2021-01-01 00:00:00 UTC.
+Manager::hookDateTime(new DateTimeImmutable('2021-01-01 00:00:00 UTC'));
+
+echo date('Y-m-d H:i:s');
+echo time();
+
+Manager::unhook();
+```
+
+**After (version >= 2.0):**
+
+1. Install the extension via the package manager (Ubuntu example):
+   ```bash
+   apt-get install php-colopl-timeshifter
+   ```
+   Or via Packagist PHP Extension installer:
+   ```bash
+   composer require --dev-only colopl/colopl_timeshifter --with-php-extensions
+   ```
+
+2. Verify the extension is loaded:
+   ```bash
+   php -m | grep colopl_timeshifter
+   ```
+
+3. Call the extension functions directly from your test code:
+   ```php
+   <?php
+   use function Colopl\ColoplTimeShifter\register_hook;
+   use function Colopl\ColoplTimeShifter\unregister_hook;
+
+   $target = new DateTimeImmutable('2021-01-01 00:00:00 UTC');
+   register_hook($target->diff(new DateTimeImmutable()));
+
+   echo date('Y-m-d H:i:s');
+   echo time();
+
+   unregister_hook();
+   ```
+
+#### Key differences:
+
+- **No PHP library wrapper**: The `Colopl\ColoplTimeShifter\Manager` class was removed. Use the extension functions directly.
+- **Direct API mapping**: Replace `Manager::hookDateInterval($interval)` with `register_hook($interval)`, `Manager::unhook()` with `unregister_hook()`, and `Manager::isHooked()` with `is_hooked()`.
+- **Date target migration**: Replace `Manager::hookDateTime($dateTime)` with `register_hook($dateTime->diff(new DateTimeImmutable()))`.
+- **Global hook state**: Once registered, time shifting applies to hooked time-related functions until `unregister_hook()` is called or the request ends with `colopl_timeshifter.is_restore_per_request=1`.
 
 ## INI directives
 
@@ -86,14 +150,6 @@ Run-time switchable: **No** (`PHP_INI_SYSTEM`)
 
 Selects whether to hook the `$_SERVER` superglobals `REQUEST_TIME` and `REQUEST_TIME_FLOAT`.
 
-#### `colopl_timeshifter.usleep_sec`
-
-Type: `int` (`int<1, max>`)
-Default: `1`
-Run-time switchable: **Yes** (`PHP_INI_ALL`)
-
-For a string representing time, set the number of wait microseconds used to check whether it is absolute or relative time.
-
 #### `colopl_timeshifter.is_restore_per_request`
 
 Type: `bool`
@@ -105,7 +161,7 @@ Sets whether or not to unhook at the end of the request.
 ## Functions
 
 > [!TIP]
-> Install `colopl/colopl_timeshifter` via Composer and use `Colopl\ColoplTimeShifter\Manager` instead when possible.
+> Version 2.0 exposes extension functions only. The former Composer `Manager` class is no longer available.
 
 #### `\Colopl\ColoplTimeShifter\register_hook(\DateInterval $interval): bool`
 
@@ -124,10 +180,3 @@ Checks whether the hook is active. Returns `true` if the hook is active, `false`
 ## License
 
 BSD-3-Clause
-
-This repository also vendors timelib under [ext/third_party/timelib](ext/third_party/timelib).
-timelib remains available under the MIT License, and
-[ext/third_party/timelib/parse_posix.c](ext/third_party/timelib/parse_posix.c)
-includes an additional note for code adapted from IANA tzcode that is marked as
-public domain. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for the
-bundled third-party notice summary.

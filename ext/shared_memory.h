@@ -14,13 +14,29 @@
 # define SHARED_MEMORY_H
 
 # include "php.h"
-# include <semaphore.h>
-# include <sys/mman.h>
+
+# ifdef PHP_WIN32
+#  include <windows.h>
+# else
+#  include <semaphore.h>
+#  include <sys/mman.h>
+#  ifdef __APPLE__
+#   define COLOPL_TS_SEMAPHORE_NAME_MAX 32
+#  endif
+# endif
 
 typedef struct {
-  void *data;
-  size_t size;
-  sem_t semaphore;
+	void *data;
+	size_t size;
+# ifdef PHP_WIN32
+	HANDLE mapping;
+	HANDLE mutex;
+# elif defined(__APPLE__)
+	sem_t *semaphore;
+	char semaphore_name[COLOPL_TS_SEMAPHORE_NAME_MAX];
+# else
+	sem_t semaphore;
+# endif
 } sm_t;
 
 bool sm_init(sm_t *sm, size_t size);

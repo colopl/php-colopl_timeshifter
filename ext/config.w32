@@ -1,0 +1,13 @@
+ARG_ENABLE("colopl_timeshifter", "COLOPL TimeShifter support", "no");
+
+if (PHP_COLOPL_TIMESHIFTER != "no") {
+	EXTENSION(
+		"colopl_timeshifter",
+		"colopl_timeshifter.c hook.c shared_memory.c",
+		PHP_COLOPL_TIMESHIFTER_SHARED,
+		"/DZEND_ENABLE_STATIC_TSRMLS_CACHE=1"
+	);
+	ADD_EXTENSION_DEP("colopl_timeshifter", "date");
+	ADD_EXTENSION_DEP("colopl_timeshifter", "pdo");
+	AC_DEFINE("HAVE_COLOPL_TIMESHIFTER", 1, "Define to 1 if the PHP extension 'colopl_timeshifter' is available.");
+}

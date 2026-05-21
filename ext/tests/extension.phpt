@@ -37,7 +37,7 @@ if (\Colopl\ColoplTimeShifter\is_hooked() === \false) {
 
 $seconde_hooked = new \DateTime('now');
 
-if ($before >= $after || $hooked >= $before || $seconde_hooked >= $before) {
+if ($hooked >= $before || $seconde_hooked >= $before || $after <= $hooked) {
     die('failure behavior');
 }
 

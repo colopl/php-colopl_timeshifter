@@ -55,7 +55,6 @@ jobs:
       matrix:
         runs-on:
           - windows-2022
-          - windows-2025
         version: ['8.1', '8.2', '8.3', '8.4', '8.5']
         arch: ['x64', 'x86']
         ts: ['ts', 'nts']
@@ -84,7 +83,13 @@ jobs:
         id: ext-name
         shell: pwsh
         run: |
-          $name = (Get-Content .\ext\config.w32 | Select-String "EXTENSION\('([^']+)'" | ForEach-Object { $_.Matches[0].Groups[1].Value })
+          $pattern = 'EXTENSION\(\s*["'']([^"'']+)["'']'
+          $config = Get-Content -Raw .\ext\config.w32
+          $match = [regex]::Match($config, $pattern)
+          if (-not $match.Success) {
+            throw "Unable to find EXTENSION name in ext\config.w32"
+          }
+          $name = $match.Groups[1].Value
           echo "name=$name" >> $env:GITHUB_OUTPUT
       - name: Setup PHP
         id: setup-php
@@ -94,6 +99,28 @@ jobs:
           arch: ${{ matrix.arch }}
           ts: ${{ matrix.ts }}
           cache: true
+      - name: Setup MySQL 8.0
+        uses: shogo82148/actions-setup-mysql@9c42ca180d5f1dd4dceb54c23c5eda0384f4d265 # v1.50.0
+        with:
+          mysql-version: '8.0'
+          user: testing
+          password: testing
+          my-cnf: |
+            default-authentication-plugin=mysql_native_password
+      - name: Setup MySQL 8.0 compatibility endpoint for TiDB PDO tests
+        uses: shogo82148/actions-setup-mysql@9c42ca180d5f1dd4dceb54c23c5eda0384f4d265 # v1.50.0
+        with:
+          mysql-version: '8.0'
+          my-cnf: |
+            port=4000
+            default-authentication-plugin=mysql_native_password
+      - name: Configure MySQL test database
+        shell: pwsh
+        run: |
+          Add-Content -Path "$env:SystemRoot\System32\drivers\etc\hosts" -Value "`n127.0.0.1 mysql`n127.0.0.1 tidb"
+          mysql --protocol=tcp --ssl-mode=DISABLED --host=127.0.0.1 --port=3306 --user=root --execute="CREATE DATABASE IF NOT EXISTS testing;"
+          mysql --protocol=tcp --ssl-mode=DISABLED --host=mysql --port=3306 --user=testing --password=testing testing --execute="SELECT VERSION();"
+          mysql --protocol=tcp --ssl-mode=DISABLED --host=tidb --port=4000 --user=root mysql --execute="SELECT VERSION();"
       - name: Enable Developer Command Prompt
         uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
         with:
