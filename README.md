@@ -74,7 +74,7 @@ Generated `.ddeb`, `.changes`, and `.buildinfo` artifacts use the same Ubuntu ve
 
 ### From Composer Package to Packagist PHP Extension Installer
 
-As of version 2.0, this extension is distributed via the Packagist PHP Extension installer (PIE) and is no longer available as a Composer library package. The PHP library interface (`Colopl\ColoplTimeShifter\Manager` class) has been discontinued.
+As of version 2.0, this package is distributed as a PHP extension via the Packagist PHP Extension installer (PIE), not as a Composer library package. The former PHP wrapper interface (`Colopl\ColoplTimeShifter\Manager`) is now implemented by the extension itself.
 
 #### For users previously using `Manager` class
 
@@ -110,26 +110,25 @@ Manager::unhook();
    php -m | grep colopl_timeshifter
    ```
 
-3. Call the extension functions directly from your test code:
+3. Use the extension-provided `Manager` class from your test code:
    ```php
    <?php
-   use function Colopl\ColoplTimeShifter\register_hook;
-   use function Colopl\ColoplTimeShifter\unregister_hook;
+   use Colopl\ColoplTimeShifter\Manager;
 
-   $target = new DateTimeImmutable('2021-01-01 00:00:00 UTC');
-   register_hook($target->diff(new DateTimeImmutable()));
+   // Shift the current time to 2021-01-01 00:00:00 UTC.
+   Manager::hookDateTime(new DateTimeImmutable('2021-01-01 00:00:00 UTC'));
 
    echo date('Y-m-d H:i:s');
    echo time();
 
-   unregister_hook();
+   Manager::unhook();
    ```
 
 #### Key differences:
 
-- **No PHP library wrapper**: The `Colopl\ColoplTimeShifter\Manager` class was removed. Use the extension functions directly.
-- **Direct API mapping**: Replace `Manager::hookDateInterval($interval)` with `register_hook($interval)`, `Manager::unhook()` with `unregister_hook()`, and `Manager::isHooked()` with `is_hooked()`.
-- **Date target migration**: Replace `Manager::hookDateTime($dateTime)` with `register_hook($dateTime->diff(new DateTimeImmutable()))`.
+- **No Composer autoloaded wrapper**: The `Colopl\ColoplTimeShifter\Manager` class is provided by the loaded extension.
+- **Compatibility API**: Existing calls to `Manager::hookDateTime()`, `Manager::hookDateInterval()`, `Manager::unhook()`, `Manager::isHooked()`, and `Manager::isAvailable()` continue to work after the extension is installed.
+- **Direct functions remain available**: You can still call `register_hook($interval)`, `unregister_hook()`, and `is_hooked()` directly when you want the lower-level API.
 - **Global hook state**: Once registered, time shifting applies to hooked time-related functions until `unregister_hook()` is called or the request ends with `colopl_timeshifter.is_restore_per_request=1`.
 
 ## INI directives
@@ -158,10 +157,32 @@ Run-time switchable: **Yes** (`PHP_INI_ALL`)
 
 Sets whether or not to unhook at the end of the request.
 
-## Functions
+## Classes
 
 > [!TIP]
-> Version 2.0 exposes extension functions only. The former Composer `Manager` class is no longer available.
+> The extension provides both the compatibility `Manager` class and the lower-level functions below.
+
+#### `\Colopl\ColoplTimeShifter\Manager::isAvailable(): bool`
+
+Checks whether TimeShifter is available. When this class is provided by the extension, it returns `true`.
+
+#### `\Colopl\ColoplTimeShifter\Manager::isHooked(): bool`
+
+Checks whether the hook is active.
+
+#### `\Colopl\ColoplTimeShifter\Manager::unhook(): bool`
+
+Breaks the hook and returns `true`.
+
+#### `\Colopl\ColoplTimeShifter\Manager::hookDateTime(\DateTimeInterface $dateTime): bool`
+
+Sets the current time to the specified date and time.
+
+#### `\Colopl\ColoplTimeShifter\Manager::hookDateInterval(\DateInterval $dateInterval): bool`
+
+Sets the time difference to be subtracted from the current time.
+
+## Functions
 
 #### `\Colopl\ColoplTimeShifter\register_hook(\DateInterval $interval): bool`
 
