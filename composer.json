@@ -1,6 +1,6 @@
 {
     "name": "colopl/colopl_timeshifter",
-    "description": "Current time modification extension wrapper library.",
+    "description": "Current time modification PHP extension.",
     "type": "php-ext",
     "require": {
         "php": "~8.1.0 || ~8.2.0 || ~8.3.0 || ~8.4.1 || ~8.5.0"
@@ -29,16 +29,6 @@
         ]
     },
     "license": "BSD-3-Clause",
-    "autoload": {
-        "psr-4": {
-            "Colopl\\ColoplTimeShifter\\": "src/"
-        }
-    },
-    "autoload-dev": {
-        "psr-4": {
-            "Colopl\\ColoplTimeShifter\\Tests\\": "tests/"
-        }
-    },
     "authors": [
         {
             "name": "Go Kudo",
