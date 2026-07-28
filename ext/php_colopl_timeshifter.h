@@ -14,7 +14,9 @@
 # define PHP_COLOPL_TIMESHIFTER_H
 
 # include "ext/date/php_date.h"
-# include "ext/pdo/php_pdo_driver.h"
+# ifdef COLOPL_TIMESHIFTER_HAVE_PDO
+#  include "ext/pdo/php_pdo_driver.h"
+# endif
 
 # include "shared_memory.h"
 
@@ -34,9 +36,11 @@ extern zend_module_entry colopl_timeshifter_module_entry;
 # define PHP_COLOPL_TIMESHIFTER_VERSION "2.0.0"
 
 ZEND_BEGIN_MODULE_GLOBALS(colopl_timeshifter)
+# ifdef COLOPL_TIMESHIFTER_HAVE_PDO
 	struct pdo_dbh_methods hooked_mysql_driver_methods;
 	const struct pdo_dbh_methods *pdo_mysql_orig_methods;
 	zif_handler orig_pdo_con; /* \PDO::__construct */
+# endif
 	zif_handler orig_dt_con; /* \DateTime::__construct() */
 	zif_handler orig_dt_createfromformat; /* \DateTime::createFromFormat() */
 	zif_handler orig_dti_con; /* \DateTimeImmutable::__construct() */

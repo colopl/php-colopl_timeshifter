@@ -5,6 +5,14 @@ colopl_timeshifter
 pdo
 pdo_mysql
 mysqlnd
+--SKIPIF--
+<?php
+ob_start();
+phpinfo(INFO_MODULES);
+if (str_contains(ob_get_clean(), 'PDO Support => Disable')) {
+    die('skip colopl_timeshifter PDO hook is not available');
+}
+?>
 --INI--
 colopl_timeshifter.is_hook_pdo_mysql=1
 --FILE--

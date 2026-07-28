@@ -4,9 +4,11 @@ services:
     environment:
       - CONFIGURE_OPTS=--enable-pdo --enable-mysqlnd --with-pdo-mysql
       - LCOV_OPTS=--ignore-errors unused --exclude=/ext/third_party/* --ignore-errors unused --exclude=/project/ext/third_party/* --ignore-errors unused --exclude=/workspace/ext/third_party/* --ignore-errors unused --exclude=/workspaces/pskel/ext/third_party/*
+      - PSKEL_WORKSPACE_DIR=/workspace
     build:
       context: ./
       dockerfile: ./Dockerfile
+      target: ${PSKEL_BUILD_TARGET:-devcontainer}
     cap_add:
       - SYS_ADMIN
     security_opt:

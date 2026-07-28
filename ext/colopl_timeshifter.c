@@ -299,7 +299,9 @@ PHP_MINIT_FUNCTION(colopl_timeshifter)
 		apply_request_time_hook();
 	}
 
+#ifdef COLOPL_TIMESHIFTER_HAVE_PDO
 	COLOPL_TS_G(pdo_mysql_orig_methods) = NULL;
+#endif
 
 	return SUCCESS;
 }
@@ -345,6 +347,11 @@ PHP_MINFO_FUNCTION(colopl_timeshifter)
 	php_info_print_table_start();
 	php_info_print_table_header(2, "colopl_timeshifter support", "enabled");
 	php_info_print_table_row(2, "timeshifter version", PHP_COLOPL_TIMESHIFTER_VERSION);
+#ifdef COLOPL_TIMESHIFTER_HAVE_PDO
+	php_info_print_table_row(2, "PDO Support", COLOPL_TS_G(orig_pdo_con) ? "Enable" : "Disable");
+#else
+	php_info_print_table_row(2, "PDO Support", "Disable");
+#endif
 	php_info_print_table_end();
 }
 
@@ -356,6 +363,7 @@ PHP_GINIT_FUNCTION(colopl_timeshifter)
 	ZEND_TSRMLS_CACHE_UPDATE();
 # endif
 
+	memset(colopl_timeshifter_globals, 0, sizeof(zend_colopl_timeshifter_globals));
 	sm_init(&timeshifter_global, sizeof(timeshifter_global_t));
 	sm_read(&timeshifter_global, &tg);
 	tg.is_hooked = false;
@@ -368,8 +376,17 @@ PHP_GSHUTDOWN_FUNCTION(colopl_timeshifter)
 	sm_free(&timeshifter_global);
 }
 
+/* PDO is optional: declare it as an optional dependency so its MINIT runs
+ * before ours when it is loaded, without requiring it to be present. */
+static const zend_module_dep colopl_timeshifter_deps[] = {
+	ZEND_MOD_REQUIRED("date")
+	ZEND_MOD_OPTIONAL("pdo")
+	ZEND_MOD_END
+};
+
 zend_module_entry colopl_timeshifter_module_entry = {
-	STANDARD_MODULE_HEADER,
+	STANDARD_MODULE_HEADER_EX, NULL,
+	colopl_timeshifter_deps,
 	"colopl_timeshifter",
 	ext_functions,
 	PHP_MINIT(colopl_timeshifter),

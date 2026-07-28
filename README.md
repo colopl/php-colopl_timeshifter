@@ -13,10 +13,10 @@ At present, this extension is effective for the following functions:
 
 ## Install
 
-Clone the repository with submodules and build the extension.
+Clone the repository and build the extension.
 
 ```bash
-$ git clone --recursive "https://github.com/colopl/php-colopl_timeshifter.git" "colopl_timeshifter"
+$ git clone "https://github.com/colopl/php-colopl_timeshifter.git" "colopl_timeshifter"
 $ cd "colopl_timeshifter/ext"
 $ phpize
 $ ./configure --with-php-config="$(which php-config)"

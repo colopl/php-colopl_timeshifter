@@ -1,4 +1,5 @@
 ARG_ENABLE("colopl_timeshifter", "COLOPL TimeShifter support", "no");
+ARG_ENABLE("colopl_timeshifter_pdo", "COLOPL TimeShifter PDO (MySQL) hook support", "yes");
 
 if (PHP_COLOPL_TIMESHIFTER != "no") {
 	EXTENSION(
@@ -8,6 +9,10 @@ if (PHP_COLOPL_TIMESHIFTER != "no") {
 		"/DZEND_ENABLE_STATIC_TSRMLS_CACHE=1"
 	);
 	ADD_EXTENSION_DEP("colopl_timeshifter", "date");
-	ADD_EXTENSION_DEP("colopl_timeshifter", "pdo");
+	if (PHP_COLOPL_TIMESHIFTER_PDO != "no" && ADD_EXTENSION_DEP("colopl_timeshifter", "pdo", true)) {
+		AC_DEFINE("COLOPL_TIMESHIFTER_HAVE_PDO", 1, "Define to 1 when the PDO headers are available.");
+	} else {
+		WARNING("colopl_timeshifter: PDO hook disabled or PDO extension not enabled, building without PDO hook support");
+	}
 	AC_DEFINE("HAVE_COLOPL_TIMESHIFTER", 1, "Define to 1 if the PHP extension 'colopl_timeshifter' is available.");
 }
