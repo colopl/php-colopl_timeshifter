@@ -363,6 +363,7 @@ PHP_GINIT_FUNCTION(colopl_timeshifter)
 	ZEND_TSRMLS_CACHE_UPDATE();
 # endif
 
+	memset(colopl_timeshifter_globals, 0, sizeof(zend_colopl_timeshifter_globals));
 	sm_init(&timeshifter_global, sizeof(timeshifter_global_t));
 	sm_read(&timeshifter_global, &tg);
 	tg.is_hooked = false;
