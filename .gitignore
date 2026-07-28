@@ -3,6 +3,7 @@
 /vendor
 /.idea
 /artifacts
+/valgrind-*.tar.bz2
 *.DS_Store
 lcov.info
 composer.lock

@@ -1,128 +1,190 @@
-name: Build and release artifacts
-
+name: Release
 on:
   push:
     tags:
       - '*'
-
 permissions:
   contents: read
-
 jobs:
-  Prepare:
+  Source:
     runs-on: ubuntu-24.04
-    outputs:
-      artifact_name: ${{ steps.metadata.outputs.artifact_name }}
-      archive_name: ${{ steps.metadata.outputs.archive_name }}
     permissions:
-      contents: read
+      contents: write
+    outputs:
+      extension-name: ${{ steps.metadata.outputs.extension-name }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
-        with:
-          fetch-depth: 1
-          fetch-tags: true
-          ref: ${{ github.ref }}
-          submodules: recursive
-      - name: Record artifact metadata
-        id: metadata
+      - name: Verify project is initialized
         run: |
-          ARTIFACT_NAME="pie-source-${GITHUB_RUN_ID}"
-          echo "artifact_name=${ARTIFACT_NAME}" >> "${GITHUB_OUTPUT}"
-          echo "archive_name=${ARTIFACT_NAME}.tar.gz" >> "${GITHUB_OUTPUT}"
-      - name: Create workspace archive
-        id: archive
-        env:
-          ARCHIVE_NAME: ${{ steps.metadata.outputs.archive_name }}
-        run: |
-          ARCHIVE_PATH="${RUNNER_TEMP}/${ARCHIVE_NAME}"
-          REPO_DIR="$(basename "${GITHUB_WORKSPACE}")"
-          tar -czf "${ARCHIVE_PATH}" -C "$(dirname "${GITHUB_WORKSPACE}")" "${REPO_DIR}"
-          echo "archive-path=${ARCHIVE_PATH}" >> "${GITHUB_OUTPUT}"
-      - name: Upload Prepared workspace
+          if ! test -f "composer.json"; then
+            echo "Error: composer.json not found, run 'pskel init' before tagging a release." >&2
+            exit 1
+          fi
+      - name: Archive prepared extension
+        run: tar -cf "${RUNNER_TEMP}/release-ext.tar" "ext"
+      - name: Upload prepared extension
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ steps.metadata.outputs.artifact_name }}
-          path: ${{ steps.archive.outputs.archive-path }}
+          name: release-ext
+          path: ${{ runner.temp }}/release-ext.tar
           retention-days: 1
-  DraftRelease:
-    needs: [ Prepare ]
+      - name: Extract release metadata
+        id: metadata
+        run: |
+          EXT_NAME="$(jq -r '."php-ext"."extension-name" // empty' "composer.json")"
+          if test -z "${EXT_NAME}"; then
+            echo "Error: php-ext.extension-name not found in composer.json." >&2
+            exit 1
+          fi
+          echo "extension-name=${EXT_NAME}" >> "${GITHUB_OUTPUT}"
+      - name: Create source package
+        id: source
+        env:
+          EXT_NAME: ${{ steps.metadata.outputs.extension-name }}
+        run: |
+          SRC_ARCHIVE_PATH="${RUNNER_TEMP}/php_${EXT_NAME}-${GITHUB_REF_NAME}-src.tgz"
+          git archive --format="tar.gz" --prefix="${EXT_NAME}-${GITHUB_REF_NAME#v}/" --output "${SRC_ARCHIVE_PATH}" HEAD
+          echo "archive-path=${SRC_ARCHIVE_PATH}" >> "${GITHUB_OUTPUT}"
+      - name: Create draft GitHub release and upload source package
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SRC_ARCHIVE_PATH: ${{ steps.source.outputs.archive-path }}
+        run: |
+          if ! gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            gh release create "${GITHUB_REF_NAME}" --title "${GITHUB_REF_NAME}" --draft --notes-from-tag --verify-tag
+          fi
+          gh release upload "${GITHUB_REF_NAME}" "${SRC_ARCHIVE_PATH}" --clobber
+  Linux:
+    needs: Source
+    runs-on: ${{ matrix.runs-on }}
+    permissions:
+      contents: write
+    env:
+      PSKEL_BUILD_TARGET: builder
+    strategy:
+      fail-fast: false
+      matrix:
+        runs-on: ['ubuntu-24.04', 'ubuntu-24.04-arm']
+        version: ['8.1', '8.2', '8.3', '8.4', '8.5']
+        ts: ['cli', 'zts']
+        distro: ['trixie', 'alpine']
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+      - name: Remove checked-out extension sources
+        run: rm -rf "ext"
+      - name: Download prepared extension
+        uses: actions/download-artifact@v8
+        with:
+          name: release-ext
+          path: ${{ runner.temp }}/release-ext
+      - name: Extract prepared extension
+        run: tar -xf "${RUNNER_TEMP}/release-ext/release-ext.tar" -C "${GITHUB_WORKSPACE}"
+      - name: Build PIE pre-packaged binary
+        run: |
+          docker compose build \
+            --build-arg TAG="${{ matrix.version }}-${{ matrix.ts }}-${{ matrix.distro }}" \
+            shell
+          mkdir -p "dist"
+          docker compose run -v "$(pwd)/dist:/dist" --rm shell pskel package "${GITHUB_REF_NAME}" /dist "${{ needs.Source.outputs.extension-name }}"
+      - name: Upload PIE pre-packaged binary to the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${GITHUB_REF_NAME}" dist/*.zip --clobber
+  macOS:
+    needs: Source
+    runs-on: ${{ matrix.runs-on }}
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        runs-on: ['macos-15', 'macos-15-intel']
+        version: ['8.1', '8.2', '8.3', '8.4', '8.5']
+        ts: ['ts', 'nts']
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+      - name: Remove checked-out extension sources
+        run: rm -rf "ext"
+      - name: Download prepared extension
+        uses: actions/download-artifact@v8
+        with:
+          name: release-ext
+          path: ${{ runner.temp }}/release-ext
+      - name: Extract prepared extension
+        run: tar -xf "${RUNNER_TEMP}/release-ext/release-ext.tar" -C "${GITHUB_WORKSPACE}"
+      - name: Setup PHP
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: ${{ matrix.version }}
+          extensions: none
+        env:
+          phpts: ${{ matrix.ts }}
+      - name: Build and upload PIE pre-packaged binary
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "dist"
+          ./pskel.sh package "${GITHUB_REF_NAME}" "dist" "${{ needs.Source.outputs.extension-name }}"
+          gh release upload "${GITHUB_REF_NAME}" dist/*.zip --clobber
+  Windows:
+    needs: Source
+    runs-on: windows-2025
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        version: ['8.1', '8.2', '8.3', '8.4', '8.5']
+        arch: ['x64', 'x86']
+        ts: ['ts', 'nts']
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+      - name: Remove checked-out extension sources
+        shell: pwsh
+        run: Remove-Item -LiteralPath .\ext -Recurse -Force
+      - name: Download prepared extension
+        uses: actions/download-artifact@v8
+        with:
+          name: release-ext
+          path: ${{ runner.temp }}/release-ext
+      - name: Extract prepared extension
+        shell: pwsh
+        run: tar -xf "$env:RUNNER_TEMP\release-ext\release-ext.tar" -C "$env:GITHUB_WORKSPACE"
+      - name: Stage extension source for Windows builder
+        shell: pwsh
+        run: |
+          Get-ChildItem -LiteralPath .\ext -Force | Copy-Item -Destination . -Recurse -Force
+      - name: Build extension
+        uses: php/php-windows-builder/extension@29352c0ef9e8ce65264ea9e287881a6f7758a953 # 1.9.0
+        with:
+          php-version: ${{ matrix.version }}
+          arch: ${{ matrix.arch }}
+          ts: ${{ matrix.ts }}
+          args: --enable-${{ needs.Source.outputs.extension-name }}
+          run-tests: 'false'
+  Upload_Windows:
+    needs:
+      - Source
+      - Windows
     runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
-      - name: Download Prepared workspace
-        uses: actions/download-artifact@v8
+      - name: Upload Windows binaries to the draft release
+        uses: php/php-windows-builder/release@29352c0ef9e8ce65264ea9e287881a6f7758a953 # 1.9.0
         with:
-          name: ${{ needs.Prepare.outputs.artifact_name }}
-          path: ${{ runner.temp }}/source-archive
-      - name: Extract Prepared workspace
-        env:
-          ARCHIVE_NAME: ${{ needs.Prepare.outputs.archive_name }}
-        run: |
-          ARCHIVE_PATH="${RUNNER_TEMP}/source-archive/${ARCHIVE_NAME}"
-          tar -xzf "${ARCHIVE_PATH}" --strip-components=1 -C "${GITHUB_WORKSPACE}"
-          rm -f "${ARCHIVE_PATH}"
-      - name: Create source archive with submodules
-        run: |
-          RELEASE_ARCHIVE="php_colopl_timeshifter-${{ github.ref_name }}-src.tgz"
-          tar -czf "${RUNNER_TEMP}/${RELEASE_ARCHIVE}" --transform "s,^\.,$(basename "${GITHUB_WORKSPACE}")," .
-          echo "RELEASE_ARCHIVE=${RUNNER_TEMP}/${RELEASE_ARCHIVE}" >> "${GITHUB_ENV}"
-      - name: Create draft release from tag
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release create "${{ github.ref_name }}" --title "${{ github.ref_name }}" --draft --notes-from-tag \
-            "${RELEASE_ARCHIVE}#Source with submodules"
-  AddPieBinaries:
-    needs: [ Prepare, DraftRelease ]
-    runs-on: ${{ matrix.operating-system }}
-    strategy:
-      fail-fast: false
-      matrix:
-        operating-system:
-          - ubuntu-latest
-          - macos-latest
-        php-versions:
-          - '8.1'
-          - '8.2'
-          - '8.3'
-          - '8.4'
-          - '8.5'
-        zts-mode:
-          - ts
-          - nts
+          release: ${{ github.ref_name }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          draft: 'true'
+  AddDebPackages:
+    needs: Source
+    runs-on: ${{ matrix.runs-on }}
     permissions:
       contents: write
-    steps:
-      - name: Download Prepared workspace
-        uses: actions/download-artifact@v8
-        with:
-          name: ${{ needs.Prepare.outputs.artifact_name }}
-          path: ${{ runner.temp }}/source-archive
-      - name: Extract Prepared workspace
-        env:
-          ARCHIVE_NAME: ${{ needs.Prepare.outputs.archive_name }}
-        run: |
-          ARCHIVE_PATH="${RUNNER_TEMP}/source-archive/${ARCHIVE_NAME}"
-          tar -xzf "${ARCHIVE_PATH}" --strip-components=1 -C "${GITHUB_WORKSPACE}"
-          rm -f "${ARCHIVE_PATH}"
-      - name: Setup PHP
-        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
-        with:
-          php-version: ${{ matrix.php-versions }}
-        env:
-          phpts: ${{ matrix.zts-mode }}
-      - name: Build and release
-        uses: php/pie-ext-binary-builder@5298761950f63c7e9565ed7004e922b346e4386c # 0.0.3
-        with:
-          release-tag: ${{ github.ref_name }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          configure-flags: '--enable-colopl_timeshifter'
-          build-path: 'ext'
-  AddDebPackages:
-    needs: [ Prepare, DraftRelease ]
-    runs-on: ${{ matrix.runs-on }}
     strategy:
       fail-fast: false
       matrix:
@@ -157,21 +219,9 @@ jobs:
             arch: arm64
             dockerfile: build/ubuntu2604/Dockerfile
             image: colopl-timeshifter-u2604-php85
-    permissions:
-      contents: write
     steps:
-      - name: Download Prepared workspace
-        uses: actions/download-artifact@v8
-        with:
-          name: ${{ needs.Prepare.outputs.artifact_name }}
-          path: ${{ runner.temp }}/source-archive
-      - name: Extract Prepared workspace
-        env:
-          ARCHIVE_NAME: ${{ needs.Prepare.outputs.archive_name }}
-        run: |
-          ARCHIVE_PATH="${RUNNER_TEMP}/source-archive/${ARCHIVE_NAME}"
-          tar -xzf "${ARCHIVE_PATH}" --strip-components=1 -C "${GITHUB_WORKSPACE}"
-          rm -f "${ARCHIVE_PATH}"
+      - name: Checkout repository
+        uses: actions/checkout@v7
       - name: Build Debian packages
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
@@ -188,13 +238,17 @@ jobs:
             -e VERSION="${VERSION}" \
             -v "${ARTIFACTS_DIR}:/tmp/artifacts" \
             "${{ matrix.image }}:${{ matrix.arch }}"
-      - name: Upload Debian packages to draft release
+      - name: Upload Debian packages to the draft release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release upload "${{ github.ref_name }}" "${RUNNER_TEMP}/artifacts/"* --clobber
+          gh release upload "${GITHUB_REF_NAME}" "${RUNNER_TEMP}/artifacts/"* --clobber
   PublishRelease:
-    needs: [ AddPieBinaries, AddDebPackages ]
+    needs:
+      - Linux
+      - macOS
+      - Upload_Windows
+      - AddDebPackages
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -202,4 +256,5 @@ jobs:
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release edit "${{ github.ref_name }}" --draft=false --repo "${{ github.repository }}"
+        run: gh release edit "${GITHUB_REF_NAME}" --draft=false --repo "${{ github.repository }}"
+

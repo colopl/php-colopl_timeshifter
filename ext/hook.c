@@ -11,6 +11,10 @@
   +----------------------------------------------------------------------+
 */
 
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
+
 #include <stdint.h>
 #include <time.h>
 
@@ -22,8 +26,10 @@
 #include "Zend/zend_exceptions.h"
 #include "Zend/zend_interfaces.h"
 #include "ext/date/php_date.h"
-#include "ext/pdo/php_pdo.h"
-#include "ext/pdo/php_pdo_driver.h"
+#ifdef COLOPL_TIMESHIFTER_HAVE_PDO
+# include "ext/pdo/php_pdo.h"
+# include "ext/pdo/php_pdo_driver.h"
+#endif
 
 #ifdef PHP_WIN32
 # include <win32/time.h>
@@ -965,6 +971,7 @@ static void adjust_date_parse_from_format_result(zval *parsed, zend_string *form
 	zval_ptr_dtor(&created);
 }
 
+#ifdef COLOPL_TIMESHIFTER_HAVE_PDO
 static inline bool pdo_time_apply(pdo_dbh_t *dbh)
 {
 	zend_string *sql;
@@ -1034,6 +1041,7 @@ static void ZEND_FASTCALL hook_pdo_con(INTERNAL_FUNCTION_PARAMETERS)
 
 	dbh->methods = &COLOPL_TS_G(hooked_mysql_driver_methods);
 }
+#endif
 
 static inline void date_common(INTERNAL_FUNCTION_PARAMETERS, int localtime)
 {
@@ -1660,8 +1668,24 @@ bool register_hooks()
 
 void register_pdo_hook()
 {
+#ifdef COLOPL_TIMESHIFTER_HAVE_PDO
+	zend_class_entry *pdo_ce;
+
+	/* PDO may be missing at runtime (disabled build, or shared pdo.so not
+	 * loaded), so resolve the class dynamically instead of linking against
+	 * PDO symbols such as php_pdo_get_dbh_ce(). */
+	if (!zend_hash_str_exists(&module_registry, "pdo", sizeof("pdo") - 1)) {
+		return;
+	}
+
+	pdo_ce = zend_hash_str_find_ptr(CG(class_table), "pdo", sizeof("pdo") - 1);
+	if (!pdo_ce || pdo_ce->type != ZEND_INTERNAL_CLASS || !pdo_ce->constructor) {
+		return;
+	}
+
 	/* \PDO::__construct */
-	HOOK_CONSTRUCTOR(php_pdo_get_dbh_ce(), pdo);
+	HOOK_CONSTRUCTOR(pdo_ce, pdo);
+#endif
 }
 
 bool unregister_hooks()
