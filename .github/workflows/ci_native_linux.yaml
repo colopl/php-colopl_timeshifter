@@ -46,14 +46,14 @@ jobs:
         id: cache-key
         run: |
           ARCH="$(uname -m)"
-          echo "key=php-bins-${{ matrix.version }}-${{ matrix.type }}-${{ matrix.distro }}-${ARCH}-${{ steps.pull-image.outputs.image_hash }}" >> "${GITHUB_OUTPUT}"
+          echo "key=php-bins-v2-${{ matrix.version }}-${{ matrix.type }}-${{ matrix.distro }}-${ARCH}-${{ steps.pull-image.outputs.image_hash }}" >> "${GITHUB_OUTPUT}"
       - name: Cache PHP binaries
         uses: actions/cache@v6
         with:
           path: php-cache
           key: ${{ steps.cache-key.outputs.key }}
           restore-keys: |
-            php-bins-${{ matrix.version }}-${{ matrix.type }}-${{ matrix.distro }}-
+            php-bins-v2-${{ matrix.version }}-${{ matrix.type }}-${{ matrix.distro }}-
       - name: Build container
         run: |
           if test -d "php-cache"; then

@@ -2,7 +2,7 @@ services:
   shell:
     image: ${SHELL_IMAGE:-shell}
     environment:
-      - CONFIGURE_OPTS=--enable-pdo --enable-mysqlnd --with-pdo-mysql
+      - CONFIGURE_OPTS=--enable-pdo --enable-mysqlnd --with-pdo-mysql --with-ffi
       - LCOV_OPTS=--ignore-errors unused --exclude=/ext/third_party/* --ignore-errors unused --exclude=/project/ext/third_party/* --ignore-errors unused --exclude=/workspace/ext/third_party/* --ignore-errors unused --exclude=/workspaces/pskel/ext/third_party/*
       - PSKEL_WORKSPACE_DIR=/workspace
     build:

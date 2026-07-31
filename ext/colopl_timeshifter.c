@@ -283,7 +283,18 @@ ZEND_METHOD(Colopl_ColoplTimeShifter_Manager, hookDateInterval)
 
 PHP_MINIT_FUNCTION(colopl_timeshifter)
 {
+	timeshifter_global_t tg;
+
 	REGISTER_INI_ENTRIES();
+
+	sm_init(&timeshifter_global, sizeof(timeshifter_global_t));
+	sm_read(&timeshifter_global, &tg);
+
+	tg.is_hooked = false;
+
+	memset(&tg.interval, 0, sizeof(tg.interval));
+
+	sm_write(&timeshifter_global, &tg);
 
 	register_class_Colopl_ColoplTimeShifter_Manager();
 
@@ -309,6 +320,8 @@ PHP_MINIT_FUNCTION(colopl_timeshifter)
 PHP_MSHUTDOWN_FUNCTION(colopl_timeshifter)
 {
 	UNREGISTER_INI_ENTRIES();
+
+	sm_free(&timeshifter_global);
 
 	if (!unregister_hooks()) {
 		return FAILURE;
@@ -357,23 +370,15 @@ PHP_MINFO_FUNCTION(colopl_timeshifter)
 
 PHP_GINIT_FUNCTION(colopl_timeshifter)
 {
-	timeshifter_global_t tg;
-
 # if defined(ZTS) && defined(COMPILE_DL_COLOPL_TIMESHIFTER)
 	ZEND_TSRMLS_CACHE_UPDATE();
 # endif
 
 	memset(colopl_timeshifter_globals, 0, sizeof(zend_colopl_timeshifter_globals));
-	sm_init(&timeshifter_global, sizeof(timeshifter_global_t));
-	sm_read(&timeshifter_global, &tg);
-	tg.is_hooked = false;
-	memset(&tg.interval, 0, sizeof(tg.interval));
-	sm_write(&timeshifter_global, &tg);
 }
 
 PHP_GSHUTDOWN_FUNCTION(colopl_timeshifter)
 {
-	sm_free(&timeshifter_global);
 }
 
 /* PDO is optional: declare it as an optional dependency so its MINIT runs
