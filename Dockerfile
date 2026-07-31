@@ -20,6 +20,7 @@ RUN docker-php-source extract \
  && if test -f "/etc/debian_version"; then \
       apt-get update  && \
       DEBIAN_FRONTEND="noninteractive" apt-get install -y "bison" "re2c" "zlib1g-dev" "libsqlite3-dev" "libxml2-dev" \
+        "libffi-dev" \
         "autoconf" "pkg-config" "make" "gcc" "rsync" "git" "ssh" "libc6-dbg" \
         "ca-certificates" "tzdata" "curl" "gnupg" \
         "lcov" "gzip" \
@@ -44,6 +45,7 @@ RUN docker-php-source extract \
       fi; \
     else \
       apk add --no-cache "bison" "zlib-dev" "sqlite-dev" "libxml2-dev" "linux-headers" \
+        "libffi-dev" \
         "autoconf" "pkgconfig" "make" "gcc" "g++" "musl-dbg" \
         "musl-dev" "rsync" "git" "openssh" \
         "patch" "lcov" "gzip" \
@@ -51,6 +53,8 @@ RUN docker-php-source extract \
         "curl" "vim" "gdb" \
         "bash"; \
     fi
+
+RUN docker-php-ext-install -j"$(nproc)" "ffi"
 
 ARG SKIP_VALGRIND
 # renovate: datasource=custom.valgrind depName=valgrind
