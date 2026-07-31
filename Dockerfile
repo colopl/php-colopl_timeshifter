@@ -54,6 +54,8 @@ RUN docker-php-source extract \
         "bash"; \
     fi
 
+RUN docker-php-ext-install -j"$(nproc)" "ffi"
+
 ARG SKIP_VALGRIND
 # renovate: datasource=custom.valgrind depName=valgrind
 ARG VALGRIND_VERSION=3.27.1

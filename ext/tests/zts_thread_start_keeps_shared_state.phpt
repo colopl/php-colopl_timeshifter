@@ -8,7 +8,9 @@ if (!PHP_ZTS) {
     die('skip ZTS build required');
 }
 
-if (!extension_loaded('FFI') && !@dl('ffi.' . PHP_SHLIB_SUFFIX)) {
+require_once __DIR__ . '/zts_ffi.inc';
+
+if (!colopl_ts_load_ffi()) {
     die('skip FFI extension required to simulate a thread start');
 }
 
@@ -35,9 +37,9 @@ const GLOBALS_BUFFER_SIZE = 65536;
 const SHIFT_DAY = 86400;
 const TOLERANCE = 5;
 
-if (!extension_loaded('FFI')) {
-    dl('ffi.' . PHP_SHLIB_SUFFIX);
-}
+require_once __DIR__ . '/zts_ffi.inc';
+
+colopl_ts_load_ffi();
 
 $ffi = FFI::cdef('void zm_globals_ctor_colopl_timeshifter(void *globals);');
 
