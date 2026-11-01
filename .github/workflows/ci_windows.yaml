@@ -102,7 +102,7 @@ jobs:
           ts: ${{ matrix.ts }}
           cache: true
       - name: Setup MySQL 8.0
-        uses: shogo82148/actions-setup-mysql@62da9377d83991fce27b6ed2a397d3306121e41d # v1.53.1
+        uses: shogo82148/actions-setup-mysql@13a38f2af408e58a0c80168fc620a63a15357339 # v1.56.2
         with:
           mysql-version: '8.0'
           user: testing
@@ -110,7 +110,7 @@ jobs:
           my-cnf: |
             default-authentication-plugin=mysql_native_password
       - name: Setup MySQL 8.0 compatibility endpoint for TiDB PDO tests
-        uses: shogo82148/actions-setup-mysql@62da9377d83991fce27b6ed2a397d3306121e41d # v1.53.1
+        uses: shogo82148/actions-setup-mysql@13a38f2af408e58a0c80168fc620a63a15357339 # v1.56.2
         with:
           mysql-version: '8.0'
           my-cnf: |
