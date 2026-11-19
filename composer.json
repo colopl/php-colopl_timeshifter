@@ -3,7 +3,7 @@
     "description": "Current time modification PHP extension.",
     "type": "php-ext",
     "require": {
-        "php": "~8.1.0 || ~8.2.0 || ~8.3.0 || ~8.4.1 || ~8.5.0"
+        "php": "~8.1.0 || ~8.2.0 || ~8.3.0 || ~8.4.1 || ~8.5.0 || ~8.6.0"
     },
     "require-dev": {
         "phpstan/phpstan": "^2.1.32",
